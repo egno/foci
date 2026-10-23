@@ -393,3 +393,33 @@ struct TilingTests {
         #expect(s.layouts == [:])
     }
 }
+
+@MainActor
+struct TargetWindowTests {
+    @Test func commandsActOnAnExplicitWindowEvenWhenHidden() {
+        let h = Harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "Personal")
+        h.engine.run("workspace w; project bil")
+        h.ws.focused = WindowID(1)
+        h.engine.run("project iam")  // window 1 is hidden now, window 2 still shown
+
+        h.engine.run("move-to-workspace c", window: WindowID(1))
+        #expect(h.record(1)?.workspace == "c")
+        h.engine.run("unlink", window: WindowID(2))
+        #expect(h.record(2)?.manual == true)
+
+        h.engine.run("reveal", window: WindowID(1))
+        #expect(h.engine.activeProject == "bil")
+        #expect(h.engine.focusedWorkspace == "c")
+        #expect(h.ws.focused == WindowID(1))
+    }
+
+    @Test func windowListIsGroupedByWorkspace() {
+        let h = Harness()
+        h.ws.open(1, bundle: "com.tinyspeck.slackmacgap")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "Personal")
+        h.engine.refresh()
+        #expect(h.engine.windowList().map(\.record.workspace) == ["s", "w"])
+    }
+}

@@ -24,7 +24,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         installSignalHandlers()
         menu.onEditConfig = { [configSource] in NSWorkspace.shared.open(configSource.url) }
         guard AXWindowSystem.isTrusted(prompt: true) else {
-            menu.show(title: "Foci ⚠ Accessibility", menu: nil)
+            menu.setTitle("Foci ⚠ Accessibility")
             // Start as soon as the user grants the permission in System Settings.
             timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
                 MainActor.assumeIsolated {
@@ -50,12 +50,13 @@ public final class FociApp: NSObject, NSApplicationDelegate {
             config: config, windowSystem: windowSystem, launcher: ShellLauncher(), store: JSONStateStore(),
             configSource: configSource)
         self.engine = engine
+        menu.engine = engine
 
         engine.onBindingsChange = { [weak self] in self?.bindHotkeys() }
         engine.onChange = { [weak self] in self?.updateMenu() }
         engine.onLog = { [log] in log.info("\($0, privacy: .public)") }
         hotkeys.onHotkey = { [weak self] script in self?.run(script) }
-        menu.onCommand = { [weak self] script in self?.run(script) }
+        menu.onCommand = { [weak self] script, window in self?.run(script, window: window) }
         windowSystem.onEvent = { [weak self] in self?.scheduleRefresh() }
 
         let center = NSWorkspace.shared.notificationCenter
@@ -100,11 +101,11 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func run(_ script: String) {
+    private func run(_ script: String, window: WindowID? = nil) {
         guard let engine else { return }
-        log.info("run: \(script, privacy: .public)")
+        log.info("run: \(script, privacy: .public)\(window.map { " on \($0)" } ?? "", privacy: .public)")
         if script.contains("reload-config") { configDate = configSource.modificationDate }
-        let errors = engine.run(script)
+        let errors = engine.run(script, window: window)
         for e in errors { log.error("\(script, privacy: .public): \(e, privacy: .public)") }
         if script.contains("reload-config") { configProblems = errors }
         updateMenu()
@@ -118,9 +119,8 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     }
 
     private func updateMenu() {
-        guard let engine else { return }
         menu.setProblems(configProblems + hotkeyProblems)
-        menu.update(engine: engine)
+        menu.update()
     }
 
     private func scheduleRefresh() {

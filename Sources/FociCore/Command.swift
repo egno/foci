@@ -22,6 +22,8 @@ public enum Command: Equatable, Sendable {
     case resize(Double)
     /// Make all tiles of the focused workspace the same size.
     case balance
+    /// Show the window's project and workspace and focus it (for windows picked in the menu).
+    case reveal
     /// Link the focused window to a project; nil = the active project.
     case link(String?)
     case unlink
@@ -116,6 +118,7 @@ public enum Command: Equatable, Sendable {
             let p = try one()
             return .link(p == "--active" ? nil : p)
         case "unlink": try none(); return .unlink
+        case "reveal": try none(); return .reveal
         case "float": try none(); return .toggleFloat
         case "launch": return .launch(app: try one())
         case "mode": return .mode(try one())

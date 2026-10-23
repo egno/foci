@@ -33,6 +33,8 @@ public final class Engine {
     private var pendingLaunches: [PendingLaunch] = []
     /// New windows of an app launched for a project within this interval are linked to that project.
     static let launchLinkInterval: TimeInterval = 30
+    /// Explicit target of the running command, see `run(_:window:)`.
+    private var target: WindowID?
     /// Last focused window reported by the OS; a change means the user focused something.
     private var lastSeenFocus: WindowID?
     /// The focus found at startup is not a user action: it may be a stale focus on a parked window.
@@ -91,7 +93,25 @@ public final class Engine {
             .sorted()
     }
 
-    private func workspaces(on d: Display) -> [String] { allWorkspaces.filter { display(of: $0).id == d.id } }
+    public func workspaces(on d: Display) -> [String] { allWorkspaces.filter { display(of: $0).id == d.id } }
+
+    public struct WindowInfo: Equatable, Sendable {
+        public let id: WindowID
+        public let appName: String
+        public let title: String
+        public let record: WindowRecord
+        public let visible: Bool
+    }
+
+    /// Managed windows by workspace, then workspace order.
+    public func windowList() -> [WindowInfo] {
+        state.windows.compactMap { id, r in
+            facts[id].map {
+                WindowInfo(id: id, appName: $0.appName, title: $0.title, record: r, visible: isVisible(r) && !$0.isFrozen)
+            }
+        }
+        .sorted { ($0.record.workspace, $0.record.seq) < ($1.record.workspace, $1.record.seq) }
+    }
 
     private func neighbour(of d: Display, _ dir: Direction) -> Display {
         let sorted = displays.sorted { $0.frame.x < $1.frame.x }
@@ -220,19 +240,22 @@ public final class Engine {
     // MARK: - Commands
 
     /// Runs a command script such as `workspace w; mode main`. Returns error messages.
+    /// Window commands act on `window` if given (e.g. picked in the menu), else on the focused window.
     @discardableResult
-    public func run(_ script: String) -> [String] {
+    public func run(_ script: String, window: WindowID? = nil) -> [String] {
         do {
-            return run(try Command.parseScript(script))
+            return run(try Command.parseScript(script), window: window)
         } catch {
             return ["\(error)"]
         }
     }
 
     @discardableResult
-    public func run(_ commands: [Command]) -> [String] {
+    public func run(_ commands: [Command], window: WindowID? = nil) -> [String] {
         let before = state
         guard sync() else { return ["no displays"] }
+        target = window
+        defer { target = nil }
         var errors: [String] = []
         for c in commands {
             if let e = execute(c) { errors.append(e) }
@@ -369,6 +392,15 @@ public final class Engine {
             for id in tiledWindows(in: focusedWorkspace) { state.windows[id]?.weight = 1 }
             apply()
 
+        case .reveal:
+            guard let id = focusedManagedWindow() ?? windowSystem.focusedWindow(), let r = state.windows[id] else {
+                return "no window"
+            }
+            if let owner = r.owner { setProject(owner) }
+            showWorkspace(r.workspace)
+            apply()
+            focus(id)
+
         case .link(let name):
             guard let id = focusedManagedWindow() else { return "no focused window" }
             guard let p = name ?? state.activeProject else { return "no active project" }
@@ -454,6 +486,7 @@ public final class Engine {
     }
 
     private func focusedManagedWindow() -> WindowID? {
+        if let target { return state.windows[target] != nil ? target : nil }
         guard let id = windowSystem.focusedWindow(), let r = state.windows[id], isVisible(r) else { return nil }
         return id
     }

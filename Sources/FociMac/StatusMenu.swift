@@ -1,78 +1,194 @@
 import AppKit
 import FociCore
 
-/// Menu bar item: `BIL · w`. The menu switches projects and shows config problems.
+/// Menu bar item `BIL · w`. The menu is built when opened: projects, workspaces per display, layout,
+/// and every managed window with its own actions.
 @MainActor
-final class StatusMenu: NSObject {
-    var onCommand: ((String) -> Void)?
+final class StatusMenu: NSObject, NSMenuDelegate {
+    /// Runs a command script, optionally targeting a specific window instead of the focused one.
+    var onCommand: ((String, WindowID?) -> Void)?
     var onEditConfig: (() -> Void)?
+    weak var engine: Engine?
 
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let menu = NSMenu()
     private var problems: [String] = []
 
     override init() {
         super.init()
         item.button?.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
-        show(title: "Foci", menu: nil)
+        item.button?.title = "Foci"
+        menu.delegate = self
+        menu.autoenablesItems = false
+        item.menu = menu
     }
 
     func setProblems(_ p: [String]) { problems = p }
 
-    func show(title: String, menu: NSMenu?) {
-        item.button?.title = title
-        item.menu = menu ?? baseMenu()
+    func setTitle(_ title: String) { item.button?.title = title }
+
+    /// `BIL · [w] x`: the workspace shown on each display (main first), the focused one bold in brackets.
+    func update() {
+        guard let engine, let button = item.button else { return }
+        let size = NSFont.systemFontSize
+        let regular: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: size, weight: .medium)]
+        let focused: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: size, weight: .bold)]
+        let dimmed: [NSAttributedString.Key: Any] = regular.merging([.foregroundColor: NSColor.secondaryLabelColor]) {
+            $1
+        }
+
+        let title = NSMutableAttributedString(string: (engine.activeProject?.uppercased() ?? "–") + " ·", attributes: regular)
+        for d in sortedDisplays(engine) {
+            guard let ws = engine.state.activeWorkspace[d.id] else { continue }
+            let isFocused = ws == engine.focusedWorkspace
+            title.append(NSAttributedString(string: " ", attributes: regular))
+            title.append(NSAttributedString(string: isFocused ? "[\(ws)]" : ws, attributes: isFocused ? focused : dimmed))
+        }
+        if engine.mode != "main" { title.append(NSAttributedString(string: " (\(engine.mode))", attributes: dimmed)) }
+        if !problems.isEmpty { title.append(NSAttributedString(string: " ⚠", attributes: regular)) }
+        button.attributedTitle = title
     }
 
-    func update(engine: Engine) {
-        let project = engine.activeProject?.uppercased() ?? "–"
-        let mode = engine.mode == "main" ? "" : " [\(engine.mode)]"
-        let warning = problems.isEmpty ? "" : " ⚠"
-        item.button?.title = "\(project) · \(engine.focusedWorkspace)\(mode)\(warning)"
+    /// Main display first, then left to right.
+    private func sortedDisplays(_ engine: Engine) -> [Display] {
+        engine.displays.sorted { ($0.isMain ? 0 : 1, $0.frame.x) < ($1.isMain ? 0 : 1, $1.frame.x) }
+    }
 
-        let menu = NSMenu()
-        for p in engine.config.projects {
-            let i = menuItem(p.name, command: "project \(p.name)")
-            i.state = engine.activeProject == p.name ? .on : .off
-            menu.addItem(i)
-        }
-        let none = menuItem("No project", command: "project --none")
-        none.state = engine.activeProject == nil ? .on : .off
-        menu.addItem(none)
-        menu.addItem(.separator())
-        for p in problems.prefix(10) {
-            let i = NSMenuItem(title: "⚠ " + p, action: nil, keyEquivalent: "")
-            i.isEnabled = false
-            menu.addItem(i)
-        }
+    // MARK: - NSMenuDelegate
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        if let engine { build(menu, engine) }
+        for p in problems.prefix(10) { menu.addItem(disabled("⚠ " + p)) }
         if !problems.isEmpty { menu.addItem(.separator()) }
-        let base = baseMenu()
-        for i in base.items {
-            base.removeItem(i)
-            menu.addItem(i)
-        }
-        item.menu = menu
-    }
-
-    private func baseMenu() -> NSMenu {
-        let menu = NSMenu()
-        menu.addItem(menuItem("Reload Config", command: "reload-config"))
-        let edit = NSMenuItem(title: "Edit Config", action: #selector(editConfig), keyEquivalent: "")
-        edit.target = self
-        menu.addItem(edit)
+        menu.addItem(command("Reload Config", "reload-config"))
+        menu.addItem(action("Edit Config", #selector(editConfig)))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Foci", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        return menu
     }
 
-    private func menuItem(_ title: String, command: String) -> NSMenuItem {
-        let i = NSMenuItem(title: title, action: #selector(runCommand(_:)), keyEquivalent: "")
+    private func build(_ menu: NSMenu, _ engine: Engine) {
+        let projects = engine.config.projects.map(\.name)
+
+        menu.addItem(header("Project"))
+        for p in projects { menu.addItem(command(p, "project \(p)", checked: engine.activeProject == p)) }
+        menu.addItem(command("No Project", "project --none", checked: engine.activeProject == nil))
+        menu.addItem(.separator())
+
+        let displays = sortedDisplays(engine)
+        for d in displays {
+            menu.addItem(header("Workspaces · \(d.name)"))
+            let active = engine.state.activeWorkspace[d.id]
+            for ws in engine.workspaces(on: d) {
+                let i = command(ws, "workspace \(ws)", checked: ws == active)
+                if ws == engine.focusedWorkspace { i.title += "  ◂" }
+                menu.addItem(i)
+            }
+        }
+        if displays.count > 1 {
+            menu.addItem(command("Move \"\(engine.focusedWorkspace)\" to Next Display", "move-workspace-to-display next"))
+        }
+        menu.addItem(.separator())
+
+        let layout = engine.layout(of: engine.focusedWorkspace)
+        menu.addItem(header("Layout · \(engine.focusedWorkspace)"))
+        menu.addItem(command("Maximized", "layout maximized", checked: layout.kind == .maximized))
+        menu.addItem(command("Tiles", "layout tiles", checked: layout.kind == .tiles))
+        menu.addItem(command("Rotate Tiles", "layout toggle-orientation"))
+        menu.addItem(command("Balance Tiles", "balance", enabled: layout.kind == .tiles))
+        menu.addItem(.separator())
+
+        let windows = engine.windowList()
+        let windowsItem = NSMenuItem(title: "Windows (\(windows.count))", action: nil, keyEquivalent: "")
+        let windowsMenu = NSMenu()
+        windowsMenu.autoenablesItems = false
+        var lastWorkspace: String?
+        for w in windows {
+            if w.record.workspace != lastWorkspace {
+                if lastWorkspace != nil { windowsMenu.addItem(.separator()) }
+                windowsMenu.addItem(header("Workspace \(w.record.workspace)"))
+                lastWorkspace = w.record.workspace
+            }
+            windowsMenu.addItem(windowItem(w, engine: engine, projects: projects))
+        }
+        windowsItem.submenu = windowsMenu
+        menu.addItem(windowsItem)
+        menu.addItem(.separator())
+    }
+
+    /// "Chrome — Inbox   [bil]" with a submenu of actions on that window.
+    private func windowItem(_ w: Engine.WindowInfo, engine: Engine, projects: [String]) -> NSMenuItem {
+        var title = w.title.isEmpty ? w.appName : "\(w.appName) — \(w.title)"
+        if title.count > 60 { title = String(title.prefix(59)) + "…" }
+        let tag = [w.record.owner, w.record.floating ? "float" : nil].compactMap { $0 }.joined(separator: ", ")
+        if !tag.isEmpty { title += "   [\(tag)]" }
+
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.state = w.visible ? .on : .off
+        let sub = NSMenu()
+        sub.autoenablesItems = false
+        sub.addItem(command("Show", "reveal", window: w.id))
+        sub.addItem(.separator())
+        sub.addItem(header("Link to Project"))
+        for p in projects {
+            sub.addItem(command(p, "link \(p)", window: w.id, checked: w.record.owner == p))
+        }
+        sub.addItem(command("Unlinked", "unlink", window: w.id, checked: w.record.owner == nil))
+        sub.addItem(.separator())
+
+        let move = NSMenuItem(title: "Move to Workspace", action: nil, keyEquivalent: "")
+        let moveMenu = NSMenu()
+        moveMenu.autoenablesItems = false
+        for d in engine.displays {
+            for ws in engine.workspaces(on: d) {
+                moveMenu.addItem(
+                    command(ws, "move-to-workspace \(ws)", window: w.id, checked: w.record.workspace == ws))
+            }
+        }
+        move.submenu = moveMenu
+        sub.addItem(move)
+        sub.addItem(command("Float", "float", window: w.id, checked: w.record.floating, enabled: w.visible))
+        item.submenu = sub
+        return item
+    }
+
+    // MARK: - Items
+
+    private struct Action {
+        let script: String
+        let window: WindowID?
+    }
+
+    private func command(
+        _ title: String, _ script: String, window: WindowID? = nil, checked: Bool = false, enabled: Bool = true
+    ) -> NSMenuItem {
+        let i = action(title, #selector(runCommand(_:)))
+        i.representedObject = Action(script: script, window: window)
+        i.state = checked ? .on : .off
+        i.isEnabled = enabled
+        return i
+    }
+
+    private func action(_ title: String, _ selector: Selector) -> NSMenuItem {
+        let i = NSMenuItem(title: title, action: selector, keyEquivalent: "")
         i.target = self
-        i.representedObject = command
+        return i
+    }
+
+    private func header(_ title: String) -> NSMenuItem {
+        if #available(macOS 14.0, *) { return NSMenuItem.sectionHeader(title: title) }
+        return disabled(title)
+    }
+
+    private func disabled(_ title: String) -> NSMenuItem {
+        let i = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        i.isEnabled = false
         return i
     }
 
     @objc private func runCommand(_ sender: NSMenuItem) {
-        if let c = sender.representedObject as? String { onCommand?(c) }
+        guard let a = sender.representedObject as? Action else { return }
+        onCommand?(a.script, a.window)
     }
 
     @objc private func editConfig() { onEditConfig?() }
