@@ -45,9 +45,15 @@ public final class TOMLConfigSource: ConfigSource {
         try checkKeys(
             root,
             ["start-at-login", "gap", "default-layout", "workspaces", "apps", "browser", "projects", "mode",
-             "key-hints", "key-hints-delay"],
+             "key-hints", "key-hints-delay", "menu-bar-style"],
             at: "top level")
         if let v = root["start-at-login"] { c.startAtLogin = try bool(v, "start-at-login") }
+        if let v = root["menu-bar-style"] {
+            guard let s = MenuBarStyle(rawValue: try string(v, "menu-bar-style")) else {
+                throw ConfigError("menu-bar-style: expected 'text', 'squares' or 'i3'")
+            }
+            c.menuBarStyle = s
+        }
         if let v = root["key-hints"] { c.keyHints = try bool(v, "key-hints") }
         if let v = root["key-hints-delay"] {
             let ms = try number(v, "key-hints-delay")

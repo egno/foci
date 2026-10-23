@@ -11,6 +11,14 @@ enum DefaultConfig {
         #   Everything else is parked off-screen.
 
         start-at-login = true
+
+        # Menu bar label, after AeroSpace's experimental UI:
+        # 'i3'       mode (circled letter), project, workspace shown on each display (focused one filled), plus the
+        #            hidden workspaces that have windows in the active project, dimmed
+        # 'squares'  only the shown workspaces
+        # 'text'     BIL · [w] x
+        menu-bar-style = 'squares'
+
         gap = 0
 
         # 'maximized': every window fills the display, 'focus next|prev' cycles through them.

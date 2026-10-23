@@ -88,6 +88,16 @@ struct ConfigTests {
         #expect(try TOMLConfigSource.parse("key-hints = false").keyHints == false)
     }
 
+    @Test func menuBarStyle() throws {
+        #expect(try TOMLConfigSource.parse("").menuBarStyle == .i3)
+        #expect(try TOMLConfigSource.parse("menu-bar-style = 'text'").menuBarStyle == .text)
+        #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("menu-bar-style = 'fancy'") }
+        #expect(MenuBarLabel.symbol("W", "square") == "w.square")
+        #expect(MenuBarLabel.symbol("12", "square") == "12.square")
+        #expect(MenuBarLabel.symbol("web", "square") == nil)
+        #expect(MenuBarLabel.symbol("51", "square") == nil)
+    }
+
     @Test func keyLabelsUseMacSymbols() {
         #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "shift-ctrl-a")!) == "⌃⇧A")
         #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "minus")!) == "-")

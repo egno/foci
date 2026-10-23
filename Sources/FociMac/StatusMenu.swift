@@ -13,6 +13,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
     private var problems: [String] = []
+    private var labelContent: MenuBarLabel.Content?
 
     override init() {
         super.init()
@@ -27,9 +28,28 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     func setTitle(_ title: String) { item.button?.title = title }
 
-    /// `BIL · [w] x`: the workspace shown on each display (main first), the focused one bold in brackets.
     func update() {
         guard let engine, let button = item.button else { return }
+        let style = engine.config.menuBarStyle
+        if style != .text {
+            let content = MenuBarLabel.content(engine, style: style, warning: !problems.isEmpty)
+            // Rendering is cheap but updates come with every refresh.
+            if content == labelContent, button.image != nil { return }
+            if let image = MenuBarLabel.image(content) {
+                labelContent = content
+                button.image = image
+                button.title = ""
+                button.setAccessibilityLabel(textTitle(engine).string)
+                return
+            }
+        }
+        labelContent = nil
+        button.image = nil
+        button.attributedTitle = textTitle(engine)
+    }
+
+    /// `BIL · [w] x`: the workspace shown on each display (main first), the focused one bold in brackets.
+    private func textTitle(_ engine: Engine) -> NSAttributedString {
         let size = NSFont.systemFontSize
         let regular: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: size, weight: .medium)]
         let focused: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: size, weight: .bold)]
@@ -46,7 +66,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
         if engine.mode != "main" { title.append(NSAttributedString(string: " (\(engine.mode))", attributes: dimmed)) }
         if !problems.isEmpty { title.append(NSAttributedString(string: " ⚠", attributes: regular)) }
-        button.attributedTitle = title
+        return title
     }
 
     /// Main display first, then left to right.

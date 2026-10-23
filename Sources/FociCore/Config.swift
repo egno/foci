@@ -3,6 +3,7 @@ import Foundation
 public struct Config: Equatable, Sendable {
     /// Register Foci as a login item.
     public var startAtLogin = false
+    public var menuBarStyle: MenuBarStyle = .i3
     /// Gap in points around and between windows.
     public var gap: Double = 0
     /// Workspace name → display spec, see `DisplaySpec`. Every workspace lives on exactly one display.
@@ -60,6 +61,16 @@ public struct Config: Equatable, Sendable {
         if modes["main"] == nil { errors.append("mode 'main' is missing") }
         return errors
     }
+}
+
+/// The menu bar label, after AeroSpace's experimental UI.
+public enum MenuBarStyle: String, CaseIterable, Equatable, Sendable {
+    /// `BIL · [w] x`
+    case text
+    /// The project, then the workspace shown on each display as a lettered square; the focused one filled.
+    case squares
+    /// Like `squares`, plus the hidden workspaces that have windows in the active project, dimmed.
+    case i3
 }
 
 public enum DisplaySpec: Equatable, Sendable {

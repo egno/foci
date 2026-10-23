@@ -267,7 +267,7 @@ public struct CLIHandler {
             }
     }
 
-    func workspaces() -> [WorkspaceDTO] {
+    public func workspaces() -> [WorkspaceDTO] {
         let shown = Set(engine.state.activeWorkspace.values)
         let windows = engine.windowList()
         return engine.displays.sorted { ($0.isMain ? 0 : 1, $0.frame.x) < ($1.isMain ? 0 : 1, $1.frame.x) }
