@@ -16,6 +16,8 @@ public struct Config: Equatable, Sendable {
     public var browser: String?
     /// Ordered: defines `project next|prev`.
     public var projects: [ProjectDef] = []
+    /// Keys the name `leader` stands for in bindings: binding `leader` binds each of them.
+    public var leaderKeys: [KeyCombo] = []
     /// Mode name → key combo → command script.
     public var modes: [String: [KeyCombo: String]] = ["main": [:]]
     /// Mode name → key combo → label shown in the key hints instead of the script.
@@ -24,10 +26,17 @@ public struct Config: Equatable, Sendable {
     public var modeLabels: [String: String] = [:]
     /// Modes that stay active after a key; any other mode but `main` returns to `main` after one key.
     public var stickyModes: Set<String> = []
+    /// Mode name → keys that repeat, like Emacs's repeat-mode: after one of them acts, the mode stays open with
+    /// only its repeat keys, so `j j j` needs one leader.
+    public var repeatKeys: [String: Set<KeyCombo>] = [:]
+    /// Seconds a submenu waits for a key before it closes; 0 = no limit.
+    public var leaderTimeout: Double = 5
+    /// Seconds the repeat keys stay active after the last one.
+    public var repeatTimeout: Double = 1
     /// Popup listing the next keys when a mode other than `main` waits for a key, like which-key.
     public var keyHints = true
     /// Seconds without a key press before the hints appear.
-    public var keyHintsDelay: Double = 0.2
+    public var keyHintsDelay: Double = 0.3
 
     public init() {}
 
@@ -175,6 +184,10 @@ public enum Modifier: String, CaseIterable, Hashable, Sendable, Comparable {
 
 /// e.g. `ctrl-shift-p`, `f20`, or a modifier key tapped alone: `right-cmd`.
 public struct KeyCombo: Hashable, Sendable, CustomStringConvertible {
+    /// Stands for all of `Config.leaderKeys` in key hints.
+    public static let leader = KeyCombo(modifiers: [], key: "leader")
+
+
     /// Modifier keys that act as a key when pressed and released alone, like Karabiner's `to_if_alone`.
     public static let tapKeys: Set<String> = [
         "left-cmd", "right-cmd", "left-alt", "right-alt", "left-ctrl", "right-ctrl", "left-shift", "right-shift",

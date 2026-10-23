@@ -11,6 +11,8 @@ public final class Engine {
     public private(set) var mode = "main"
     /// Submenus entered since leaving `main`, outermost first; the last one is `mode`.
     public private(set) var modePath: [String] = []
+    /// A repeat key of `mode` just acted: until another key or `repeat-timeout`, only the repeat keys are bound.
+    public private(set) var isRepeating = false
     public private(set) var displays: [Display] = []
     public private(set) var facts: [WindowID: WindowFacts] = [:]
 
@@ -266,12 +268,17 @@ public final class Engine {
     static let backspace = KeyCombo(modifiers: [], key: "backspace")
 
     /// Keys of the current mode. Every submenu also has `esc` (close) and `backspace` (up one level) unless
-    /// the config binds them.
+    /// the config binds them. While repeating: only the repeat keys and `esc`; other keys go to the app.
     public var bindings: [KeyCombo: String] {
         var b = config.modes[mode] ?? [:]
         guard mode != "main" else { return b }
+        if isRepeating {
+            let keys = config.repeatKeys[mode] ?? []
+            b = b.filter { keys.contains($0.key) }
+        } else if b[Self.backspace] == nil {
+            b[Self.backspace] = "mode \(modePath.dropLast().last ?? "main")"
+        }
         if b[Self.esc] == nil { b[Self.esc] = "mode main" }
-        if b[Self.backspace] == nil { b[Self.backspace] = "mode \(modePath.dropLast().last ?? "main")" }
         return b
     }
 
@@ -286,16 +293,27 @@ public final class Engine {
     public var modeTitle: String { modePath.map { config.modeLabels[$0] ?? $0 }.joined(separator: " › ") }
 
     /// Runs the script bound to a key of the current mode. A key that leaves the mode as it was returns to
-    /// `main`, unless the mode is sticky: one key per submenu, like which-key.
+    /// `main`, unless the mode is sticky: one key per submenu, like which-key. A repeat key keeps the mode
+    /// with only its repeat keys instead.
     @discardableResult
-    public func press(_ script: String) -> [String] {
+    public func press(_ combo: KeyCombo) -> [String] {
+        guard let script = bindings[combo] else { return [] }
         let before = mode
         let errors = run(script)
-        if mode == before, mode != "main", !config.stickyModes.contains(mode) { setMode("main") }
+        guard mode == before, mode != "main", !config.stickyModes.contains(mode) else { return errors }
+        if config.repeatKeys[mode]?.contains(combo) == true {
+            if !isRepeating {
+                isRepeating = true
+                onBindingsChange?()
+            }
+        } else {
+            setMode("main")
+        }
         return errors
     }
 
     private func setMode(_ m: String) {
+        isRepeating = false
         if m == "main" {
             modePath = []
         } else if let i = modePath.firstIndex(of: m) {
@@ -385,6 +403,16 @@ public final class Engine {
             ensureKnown(ws)
             state.windows[id]?.workspace = ws
             if follow { showWorkspace(ws) }
+            apply()
+            if follow { focus(id) } else { focusBest(in: focusedWorkspace) }
+
+        case .moveToDisplay(let dir, let follow):
+            guard let id = focusedManagedWindow() else { return "no focused window" }
+            let from = display(of: state.windows[id]?.workspace ?? focusedWorkspace)
+            let to = neighbour(of: from, dir)
+            guard to.id != from.id, let ws = state.activeWorkspace[to.id] else { return nil }
+            state.windows[id]?.workspace = ws
+            if follow { state.focusedWorkspace = ws }
             apply()
             if follow { focus(id) } else { focusBest(in: focusedWorkspace) }
 
@@ -516,7 +544,7 @@ public final class Engine {
         case .reloadConfig:
             do {
                 config = try configSource.load()
-                if config.modes[mode] == nil { mode = "main"; modePath = [] }
+                if config.modes[mode] == nil { mode = "main"; modePath = []; isRepeating = false }
                 dropUnknownProjects()
                 normalizeWorkspaces()
                 onBindingsChange?()

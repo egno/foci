@@ -7,14 +7,23 @@ import FociCore
 /// of modifier changes, which needs the Accessibility permission Foci has anyway.
 @MainActor
 public final class Hotkeys {
-    /// Receives the command script bound to the pressed key.
-    public var onHotkey: ((String) -> Void)?
+    /// Receives the bound key that was pressed.
+    public var onHotkey: ((KeyCombo) -> Void)?
+    /// A key press that is no hotkey, or a mouse click, while `reportsOtherInput`. It still reaches the app:
+    /// Foci only watches.
+    public var onOtherInput: (() -> Void)?
+    public var reportsOtherInput = false
 
     private var refs: [EventHotKeyRef] = []
-    private var scripts: [UInt32: String] = [:]
+    private var combos: [UInt32: KeyCombo] = [:]
     private var handler: EventHandlerRef?
-    /// Tap key name → script, for the current mode.
-    private var tapScripts: [String: String] = [:]
+    /// Tap key names of the current mode.
+    private var tapKeys: Set<String> = []
+    /// Registered (key code, modifiers), to tell other key presses from hotkeys.
+    private var registered: Set<Chord> = []
+    /// The set before the last `register`, and when it was replaced: the key that changed the mode may reach
+    /// the monitor after the new set is registered.
+    private var replaced: (chords: Set<Chord>, at: TimeInterval) = ([], 0)
     private var taps = TapDetector()
     private var monitors: [Any] = []
 
@@ -45,12 +54,14 @@ public final class Hotkeys {
     public func register(_ bindings: [KeyCombo: String]) -> [String] {
         for r in refs { UnregisterEventHotKey(r) }
         refs = []
-        scripts = [:]
-        tapScripts = [:]
+        combos = [:]
+        tapKeys = []
+        replaced = (registered, GetCurrentEventTime())
+        registered = []
         var errors: [String] = []
-        for (i, (combo, script)) in bindings.sorted(by: { $0.key.description < $1.key.description }).enumerated() {
+        for (i, combo) in bindings.keys.sorted(by: { $0.description < $1.description }).enumerated() {
             if KeyCombo.tapKeys.contains(combo.key) {
-                tapScripts[combo.key] = script
+                tapKeys.insert(combo.key)
                 continue
             }
             guard let code = Self.keyCodes[combo.key] else {
@@ -63,7 +74,8 @@ public final class Hotkeys {
                 UInt32(code), Self.carbonModifiers(combo.modifiers), id, GetApplicationEventTarget(), 0, &ref)
             if status == noErr, let ref {
                 refs.append(ref)
-                scripts[UInt32(i)] = script
+                combos[UInt32(i)] = combo
+                registered.insert(Chord(code: code, modifiers: combo.modifiers))
             } else {
                 errors.append("can't register '\(combo)' (taken by another app?)")
             }
@@ -72,23 +84,28 @@ public final class Hotkeys {
     }
 
     private func fire(_ id: UInt32) {
-        guard let script = scripts[id] else { return }
+        guard let combo = combos[id] else { return }
         // Not inside the Carbon handler: the command may re-register hotkeys (mode switch).
-        DispatchQueue.main.async { [weak self] in self?.onHotkey?(script) }
+        DispatchQueue.main.async { [weak self] in self?.onHotkey?(combo) }
     }
 
     private func observe(_ event: NSEvent) {
-        guard !tapScripts.isEmpty else { return }
-        let tapped: String?
         if event.type == .flagsChanged, let key = TapDetector.keys[Int(event.keyCode)] {
-            tapped = taps.modifier(key.name, down: event.modifierFlags.rawValue & key.deviceMask != 0, at: event.timestamp)
-        } else {
-            taps.interrupt()  // a key or click while the modifier is held: a shortcut, not a tap
-            tapped = nil
+            let down = event.modifierFlags.rawValue & key.deviceMask != 0
+            if let tapped = taps.modifier(key.name, down: down, at: event.timestamp), tapKeys.contains(tapped) {
+                let combo = KeyCombo(modifiers: [], key: tapped)
+                DispatchQueue.main.async { [weak self] in self?.onHotkey?(combo) }
+            }
+            return
         }
-        if let tapped, let script = tapScripts[tapped] {
-            DispatchQueue.main.async { [weak self] in self?.onHotkey?(script) }
-        }
+        taps.interrupt()  // a key or click while the modifier is held: a shortcut, not a tap
+        guard reportsOtherInput, event.type != .flagsChanged, event.type != .keyDown || !isHotkey(event) else { return }
+        DispatchQueue.main.async { [weak self] in self?.onOtherInput?() }
+    }
+
+    private func isHotkey(_ event: NSEvent) -> Bool {
+        let chord = Chord(event)
+        return registered.contains(chord) || (event.timestamp <= replaced.at && replaced.chords.contains(chord))
     }
 
     private static func carbonModifiers(_ m: Set<Modifier>) -> UInt32 {
@@ -98,6 +115,25 @@ public final class Hotkeys {
         if m.contains(.alt) { r |= optionKey }
         if m.contains(.shift) { r |= shiftKey }
         return UInt32(r)
+    }
+
+    struct Chord: Hashable {
+        let code: Int
+        let modifiers: Set<Modifier>
+
+        init(code: Int, modifiers: Set<Modifier>) {
+            self.code = code; self.modifiers = modifiers
+        }
+
+        init(_ event: NSEvent) {
+            let flags = event.modifierFlags
+            var m = Set<Modifier>()
+            if flags.contains(.command) { m.insert(.cmd) }
+            if flags.contains(.control) { m.insert(.ctrl) }
+            if flags.contains(.option) { m.insert(.alt) }
+            if flags.contains(.shift) { m.insert(.shift) }
+            self.init(code: Int(event.keyCode), modifiers: m)
+        }
     }
 
     /// Physical keys of the ANSI (qwerty) layout.

@@ -30,7 +30,18 @@ enum DefaultConfig {
         # the next keys when no key is pressed for 'key-hints-delay' milliseconds. Keys that only switch to
         # another mode are groups, shown as '+label' of that mode.
         key-hints = true
-        key-hints-delay = 200
+        key-hints-delay = 300
+
+        # A submenu closes after 'leader-timeout' milliseconds without a key (0 = never), on a click, and on a
+        # key it doesn't bind (that key still reaches the app).
+        leader-timeout = 5000
+        # Repeat keys ('repeat = true', like Emacs's repeat-mode): after one acts, only the repeat keys of its
+        # mode stay bound for 'repeat-timeout' milliseconds, so 'leader → → →'. Any other key goes to the app.
+        repeat-timeout = 1000
+
+        # The leader: any of these keys. In bindings, 'leader' stands for all of them.
+        # Tapped alone (right-cmd, left-alt, ...): still a modifier when held with another key.
+        leader = ['right-cmd', 'f20', 'ctrl-esc']
 
         # URL router: make Foci the default browser (System Settings > Desktop & Dock > Default web browser) and
         # links open in the browser of the project they were clicked in: the project's first app with 'open-url'.
@@ -46,7 +57,6 @@ enum DefaultConfig {
         c = 'main'
         d = 'main'
         f = 'main'
-        p = 'main'
         r = 'main'
         t = 'main'
         v = 'main'
@@ -112,6 +122,7 @@ enum DefaultConfig {
         bundle-id = 'org.mozilla.firefox'
         workspace = 'f'
         launch = 'open -a Firefox'
+        global-launch = 'open -a Firefox'
         open-url = 'open -a Firefox {url}'
 
         # Global apps: used by no project, so always unlinked. Listed only to place them on a workspace.
@@ -161,6 +172,7 @@ enum DefaultConfig {
         #   project <name>|--none|next|prev    project-back-and-forth
         #   workspace <name>|next|prev         workspace-back-and-forth
         #   move-to-workspace [--follow] <name>
+        #   move-to-display [--follow] next|prev   the focused window to the other display's workspace
         #   move-workspace-to-display next|prev    focus-display next|prev
         #   focus next|prev                    cycle windows of the focused workspace
         #   move next|prev                     swap the focused window with its neighbour (tile order)
@@ -170,7 +182,11 @@ enum DefaultConfig {
         #   launch <app>       focus the active project's window of the app, or launch it
         #   mode <name>    reload-config    exec <shell command>
         #
-        # A binding is a script, an array of commands, or { run = <script or array>, label = 'shown in key hints' }.
+        # A binding is a script, an array of commands, or
+        # { run = <script or array>, label = 'shown in key hints', repeat = true (see 'repeat-timeout') }.
+        # In a key, 'leader' stands for every leader key, and '{workspace}' for every letter a-z and any other
+        # one-character workspace in [workspaces] ('{workspace}' in its script and label is replaced too).
+        # A key bound by name wins.
         #
         # Modes other than 'main' are submenus, like the leader key in AstroNvim: one key acts, then Foci returns to
         # 'main', unless the key enters another mode or the mode is 'sticky = true'. In every submenu 'esc' closes
@@ -178,40 +194,40 @@ enum DefaultConfig {
 
         # Global hotkeys need a modifier, an F-key or a modifier tapped alone; after the leader, single plain keys.
         [mode.main.binding]
-        f20 = 'mode control'
-        ctrl-esc = 'mode control'
-        # Tapped alone (right-cmd, left-alt, ...): still a modifier when held with another key.
-        right-cmd = 'mode control'
+        leader = 'mode control'
 
         [mode.control]
         label = 'Foci'
 
         [mode.control.binding]
-        space = 'mode workspace'
-        p = 'mode project'
-        backtick = 'project-back-and-forth'
+        # Every letter is a workspace, right after the leader. Workspaces not in [workspaces] live on the
+        # display where they were first used.
+        '{workspace}' = 'workspace {workspace}'
 
-        enter = 'workspace-back-and-forth'
-        f20 = 'workspace-back-and-forth'
+        space = 'mode project'
+
+        # Leader twice: the last workspace.
+        leader = 'workspace-back-and-forth'
+        enter = 'layout toggle'
         tab = 'focus-display next'
 
-        # Window order is one row (tiles side by side) or one column (stacked/maximized).
-        j = 'focus next'
-        k = 'focus prev'
-        right = 'focus next'
-        down = 'focus next'
-        left = 'focus prev'
-        up = 'focus prev'
-        minus = 'resize -50; mode resize'
-        equal = 'resize +50; mode resize'
+        # Window order is one row (tiles side by side) or one column (stacked/maximized). Letters are workspaces,
+        # so focus is on the arrows.
+        right = { run = 'focus next', repeat = true }
+        down = { run = 'focus next', repeat = true }
+        left = { run = 'focus prev', repeat = true }
+        up = { run = 'focus prev', repeat = true }
+        minus = { run = 'resize -50', repeat = true }
+        equal = { run = 'resize +50', repeat = true }
 
-        m = 'mode move'
-        g = 'mode go'
-        e = 'mode layout'
-        l = 'mode link'
+        period = 'mode move'
+        comma = 'mode go'
+        slash = 'mode layout'
+        # '|' and '~' are shift-backslash and shift-backtick (one key on some keyboards).
+        shift-backslash = 'mode link'
         semicolon = 'mode foci'
 
-        # Projects by first letter; space space toggles the last two.
+        # Projects by first letter; j/k cycle.
         [mode.project]
         label = 'Project'
 
@@ -221,67 +237,30 @@ enum DefaultConfig {
         i = 'project iam'
         g = 'project gc'
         n = { run = 'project --none', label = 'no project' }
-        space = 'project-back-and-forth'
-
-        # Workspaces by name; space toggles the last two.
-        [mode.workspace]
-        label = 'Workspace'
-
-        [mode.workspace.binding]
-        a = 'workspace a'
-        c = 'workspace c'
-        d = 'workspace d'
-        f = 'workspace f'
-        o = 'workspace o'
-        p = 'workspace p'
-        r = 'workspace r'
-        s = 'workspace s'
-        t = 'workspace t'
-        v = 'workspace v'
-        w = 'workspace w'
-        x = 'workspace x'
-        space = 'workspace-back-and-forth'
+        j = { run = 'project next', repeat = true }
+        k = { run = 'project prev', repeat = true }
+        right = { run = 'project next', repeat = true }
+        down = { run = 'project next', repeat = true }
+        left = { run = 'project prev', repeat = true }
+        up = { run = 'project prev', repeat = true }
 
         [mode.move]
         label = 'Move'
 
         [mode.move.binding]
-        a = 'move-to-workspace a'
-        c = 'move-to-workspace c'
-        d = 'move-to-workspace d'
-        f = 'move-to-workspace f'
-        o = 'move-to-workspace o'
-        p = 'move-to-workspace p'
-        r = 'move-to-workspace r'
-        s = 'move-to-workspace s'
-        t = 'move-to-workspace t'
-        v = 'move-to-workspace v'
-        w = 'move-to-workspace w'
-        x = 'move-to-workspace x'
-        j = 'move next'
-        k = 'move prev'
-        right = 'move next'
-        down = 'move next'
-        left = 'move prev'
-        up = 'move prev'
+        '{workspace}' = 'move-to-workspace {workspace}'
+        right = { run = 'move next', repeat = true }
+        down = { run = 'move next', repeat = true }
+        left = { run = 'move prev', repeat = true }
+        up = { run = 'move prev', repeat = true }
         tab = { run = 'move-workspace-to-display next', label = 'workspace to next display' }
 
         [mode.go]
         label = 'Go with window'
 
         [mode.go.binding]
-        a = 'move-to-workspace --follow a'
-        c = 'move-to-workspace --follow c'
-        d = 'move-to-workspace --follow d'
-        f = 'move-to-workspace --follow f'
-        o = 'move-to-workspace --follow o'
-        p = 'move-to-workspace --follow p'
-        r = 'move-to-workspace --follow r'
-        s = 'move-to-workspace --follow s'
-        t = 'move-to-workspace --follow t'
-        v = 'move-to-workspace --follow v'
-        w = 'move-to-workspace --follow w'
-        x = 'move-to-workspace --follow x'
+        '{workspace}' = 'move-to-workspace --follow {workspace}'
+        tab = { run = 'move-to-display --follow next', label = 'to next display' }
 
         [mode.layout]
         label = 'Layout'
@@ -293,16 +272,6 @@ enum DefaultConfig {
         o = 'layout toggle-orientation'
         b = 'balance'
         f = 'float'
-
-        # Sticky: repeat - and =, leave with esc.
-        [mode.resize]
-        label = 'Resize'
-        sticky = true
-
-        [mode.resize.binding]
-        minus = 'resize -50'
-        equal = 'resize +50'
-        b = 'balance'
 
         # Link the focused window by hand.
         [mode.link]

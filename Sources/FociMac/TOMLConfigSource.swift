@@ -44,8 +44,8 @@ public final class TOMLConfigSource: ConfigSource {
         var c = Config()
         try checkKeys(
             root,
-            ["start-at-login", "gap", "default-layout", "workspaces", "apps", "browser", "projects", "mode",
-             "key-hints", "key-hints-delay", "menu-bar-style"],
+            ["start-at-login", "gap", "default-layout", "workspaces", "apps", "browser", "projects", "leader", "mode",
+             "key-hints", "key-hints-delay", "leader-timeout", "repeat-timeout", "menu-bar-style"],
             at: "top level")
         if let v = root["start-at-login"] { c.startAtLogin = try bool(v, "start-at-login") }
         if let v = root["menu-bar-style"] {
@@ -59,6 +59,17 @@ public final class TOMLConfigSource: ConfigSource {
             let ms = try number(v, "key-hints-delay")
             guard ms >= 0 else { throw ConfigError("key-hints-delay: expected milliseconds >= 0") }
             c.keyHintsDelay = ms / 1000
+        }
+        if let v = root["leader-timeout"] {
+            let ms = try number(v, "leader-timeout")
+            guard ms >= 0 else { throw ConfigError("leader-timeout: expected milliseconds >= 0") }
+            c.leaderTimeout = ms / 1000
+        }
+        if let v = root["repeat-timeout"] {
+            let ms = try number(v, "repeat-timeout")
+            // No "forever": repeat keys are plain letters taken from every app while active.
+            guard ms > 0 else { throw ConfigError("repeat-timeout: expected milliseconds > 0") }
+            c.repeatTimeout = ms / 1000
         }
 
         if let b = root["browser"] { c.browser = try string(b, "browser") }
@@ -101,6 +112,14 @@ public final class TOMLConfigSource: ConfigSource {
             for (i, p) in arr.enumerated() { c.projects.append(try parseProject(try table(p, "projects[\(i)]"))) }
         }
 
+        if let v = root["leader"] {
+            let names = try v.array.map { try $0.map { try string($0, "leader") } } ?? [try string(v, "leader")]
+            c.leaderKeys = try names.map {
+                guard let combo = KeyCombo(parsing: $0), combo != .leader else { throw ConfigError("leader: bad key '\($0)'") }
+                return combo
+            }
+        }
+
         c.modes = [:]
         if let modes = root["mode"] {
             let t = try table(modes, "mode")
@@ -111,42 +130,70 @@ public final class TOMLConfigSource: ConfigSource {
                 if let l = mt["label"] { c.modeLabels[name] = try string(l, "mode.\(name).label") }
                 var bindings: [KeyCombo: String] = [:]
                 var labels: [KeyCombo: String] = [:]
+                var repeats: Set<KeyCombo> = []
                 if let b = mt["binding"] {
                     let bt = try table(b, "mode.\(name).binding")
-                    for key in bt.keys {
-                        guard let combo = KeyCombo(parsing: key) else {
-                            throw ConfigError("mode.\(name).binding: bad key '\(key)'")
-                        }
+                    // Templates last: a key bound by name wins over the one '{workspace}' generates.
+                    for key in bt.keys.sorted(by: { !$0.contains("{workspace}") && $1.contains("{workspace}") }) {
                         let at = "mode.\(name).binding.\(key)"
+                        let isTemplate = key.contains("{workspace}")
+                        // '{workspace}' stands for every letter a-z and any other one-character workspace in [workspaces].
+                        let names = isTemplate ? Self.workspaceKeys(c) : [""]
                         var v = bt[key]!
+                        var label: String?
+                        var isRepeat = false
                         if let t = v.table {
-                            // Long form: { run = '...', label = '...' }
-                            try checkKeys(t, ["run", "label"], at: at)
+                            // Long form: { run = '...', label = '...', repeat = true }
+                            try checkKeys(t, ["run", "label", "repeat"], at: at)
                             guard let run = t["run"] else { throw ConfigError("\(at): missing 'run'") }
-                            if let l = t["label"] { labels[combo] = try string(l, "\(at).label") }
+                            if let l = t["label"] { label = try string(l, "\(at).label") }
+                            if let r = t["repeat"] { isRepeat = try bool(r, "\(at).repeat") }
                             v = run
                         }
-                        let script: String
+                        let template: String
                         if let s = v.string {
-                            script = s
+                            template = s
                         } else if let a = v.array {
-                            script = try a.map { try string($0, key) }.joined(separator: "; ")
+                            template = try a.map { try string($0, key) }.joined(separator: "; ")
                         } else {
-                            throw ConfigError("\(at): expected a string, an array of strings or { run, label }")
+                            throw ConfigError("\(at): expected a string, an array of strings or { run, label, repeat }")
                         }
-                        // Fail on load, not on key press.
-                        do { _ = try Command.parseScript(script) } catch {
-                            throw ConfigError("\(at): \(error)")
+                        for ws in names {
+                            func fill(_ s: String) -> String { isTemplate ? s.replacingOccurrences(of: "{workspace}", with: ws) : s }
+                            guard let parsed = KeyCombo(parsing: fill(key)) else {
+                                throw ConfigError("mode.\(name).binding: bad key '\(key)'")
+                            }
+                            let combos = parsed == .leader ? c.leaderKeys : [parsed]
+                            guard !combos.isEmpty else { throw ConfigError("\(at): no 'leader' keys set at the top level") }
+                            let script = fill(template)
+                            // Fail on load, not on key press.
+                            do { _ = try Command.parseScript(script) } catch {
+                                throw ConfigError("\(at): \(error)")
+                            }
+                            for combo in combos {
+                                if bindings[combo] != nil {
+                                    if isTemplate { continue }
+                                    // 'leader' and one of its keys in the same mode.
+                                    throw ConfigError("mode.\(name).binding: '\(combo)' bound twice")
+                                }
+                                bindings[combo] = script
+                                if let label { labels[combo] = fill(label) }
+                                if isRepeat { repeats.insert(combo) }
+                            }
                         }
-                        bindings[combo] = script
                     }
                 }
                 c.modes[name] = bindings
                 if !labels.isEmpty { c.bindingLabels[name] = labels }
+                if !repeats.isEmpty { c.repeatKeys[name] = repeats }
             }
         }
         if c.modes["main"] == nil { c.modes["main"] = [:] }
         return c
+    }
+
+    static func workspaceKeys(_ c: Config) -> [String] {
+        Set("abcdefghijklmnopqrstuvwxyz".map(String.init)).union(c.workspaces.keys.filter { $0.count == 1 }).sorted()
     }
 
     private static func parseApp(_ id: String, _ t: TOMLTable) throws -> AppDef {

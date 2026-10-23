@@ -18,12 +18,18 @@ A small macOS window manager for working on one project at a time, keyboard firs
   in: the project's first app with `open-url`, in its last focused window. The opener is the app that sent the
   link, or the nearest parent process with windows (a terminal running `open`, `gh --web`). Links from unlinked
   windows go to the active project. Outside any project, `browser` opens them in an unlinked window.
-- **Leader key and submenus**, like AstroNvim. The leader (`f20` / `ctrl-esc`, or right ⌘ tapped alone: `right-cmd`) opens a menu of single
-  plain keys: focus, and submenus `space` workspace, `p` project, `m` move, `g` go with window, `e` layout, `l` link,
-  `;` config. Modes other than `main` are one-shot: a key acts and Foci returns to `main`, unless the key
-  enters another mode or the mode is `sticky = true` (resize). In every submenu `esc` closes and
-  `backspace` goes up one level.
-- **Key hints**, like which-key: if no key is pressed for `key-hints-delay` ms (200), a popup at the bottom
+- **Leader key and submenus**, like AstroNvim. The leader (`leader = ['right-cmd', 'f20', 'ctrl-esc']`: right ⌘ tapped alone,
+  or a key) opens a menu of single plain keys: every letter is a workspace, leader twice goes to the last workspace,
+  arrows focus, `enter` layout toggle, `tab` next display, and submenus `space` project,
+  `.` move, `,` go with window, `/` layout, `|` link, `;` config. In binding keys `leader` stands for all the leader
+  keys and `{workspace}` for every letter (`'{workspace}' = 'workspace {workspace}'`). Modes other than `main` are one-shot: a key acts and Foci returns to `main`, unless the key
+  enters another mode or the mode is `sticky = true`. In every submenu `esc` closes and `backspace` goes up
+  one level. A submenu also closes after `leader-timeout` ms (5000), on a click, and on a key it doesn't bind
+  (the key still reaches the app).
+- **Repeat keys**, like Emacs's repeat-mode: after a key with `repeat = true` acts (focus, move, resize), only
+  the repeat keys of its mode stay bound for `repeat-timeout` ms (1000), so `leader → → →`. Any other key
+  goes to the app.
+- **Key hints**, like which-key: if no key is pressed for `key-hints-delay` ms (300), a popup at the bottom
   of the focused display lists the next keys, titled with the path (`Foci › Move`). Submenus show as
   `+label`. Name things with `[mode.<name>] label = '...'` and `key = { run = '...', label = '...' }`.
 - **Menu bar**, like AeroSpace's experimental UI: the project, the workspace shown on each display as a

@@ -12,6 +12,8 @@ public enum Command: Equatable, Sendable {
     case project(ProjectTarget)
     case workspace(WorkspaceTarget)
     case moveToWorkspace(String, follow: Bool)
+    /// Move the focused window to the workspace shown on the neighbouring display.
+    case moveToDisplay(Direction, follow: Bool)
     case moveWorkspaceToDisplay(Direction)
     case focusDisplay(Direction)
     case focusWindow(Direction)
@@ -95,6 +97,13 @@ public enum Command: Equatable, Sendable {
             let rest = args.filter { $0 != "--follow" }
             guard rest.count == 1 else { throw ParseError(description: "usage: move-to-workspace [--follow] <name>") }
             return .moveToWorkspace(rest[0], follow: follow)
+        case "move-to-display":
+            let follow = args.contains("--follow")
+            let rest = args.filter { $0 != "--follow" }
+            guard rest.count == 1, let dir = ["next": Direction.next, "prev": .prev][rest[0]] else {
+                throw ParseError(description: "usage: move-to-display [--follow] next|prev")
+            }
+            return .moveToDisplay(dir, follow: follow)
         case "move-workspace-to-display": return .moveWorkspaceToDisplay(try direction())
         case "focus-display": return .focusDisplay(try direction())
         case "focus": return .focusWindow(try direction())

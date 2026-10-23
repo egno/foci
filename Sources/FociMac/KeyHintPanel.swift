@@ -51,16 +51,24 @@ final class KeyHintPanel {
     }
 
     /// `⌃⇧A`, `←`, `Space`: the combo as macOS menus write it.
+    /// A shifted symbol key shows as its symbol: `shift-backslash` is `|` (one key on some keyboards).
     static func keyLabel(_ combo: KeyCombo) -> String {
+        if combo.modifiers == [.shift], let symbol = shiftedNames[combo.key] { return symbol }
         let symbols: [Modifier: String] = [.ctrl: "⌃", .alt: "⌥", .shift: "⇧", .cmd: "⌘"]
         let mods = [Modifier.ctrl, .alt, .shift, .cmd].filter(combo.modifiers.contains).compactMap { symbols[$0] }
         return mods.joined() + (keyNames[combo.key] ?? combo.key.uppercased())
     }
 
+    private static let shiftedNames: [String: String] = [
+        "backtick": "~", "1": "!", "2": "@", "3": "#", "4": "$", "5": "%", "6": "^", "7": "&", "8": "*", "9": "(",
+        "0": ")", "minus": "_", "equal": "+", "leftsquarebracket": "{", "rightsquarebracket": "}", "backslash": "|",
+        "semicolon": ":", "quote": "\"", "comma": "<", "period": ">", "slash": "?",
+    ]
+
     private static let keyNames: [String: String] = [
         "minus": "-", "equal": "=", "leftsquarebracket": "[", "rightsquarebracket": "]", "backslash": "\\",
         "semicolon": ";", "quote": "'", "comma": ",", "period": ".", "slash": "/", "backtick": "`",
-        "space": "Space", "enter": "↩", "tab": "⇥", "esc": "Esc", "backspace": "⌫",
+        "leader": "Leader", "space": "Space", "enter": "↩", "tab": "⇥", "esc": "Esc", "backspace": "⌫",
         "left": "←", "right": "→", "up": "↑", "down": "↓",
         "home": "↖", "end": "↘", "pageup": "⇞", "pagedown": "⇟",
         "left-cmd": "‹⌘", "right-cmd": "⌘›", "left-alt": "‹⌥", "right-alt": "⌥›",

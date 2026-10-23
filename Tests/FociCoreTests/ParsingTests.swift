@@ -83,4 +83,16 @@ struct ParsingTests {
         ])
         #expect(c.keyHints(for: "nope") == [])
     }
+
+    @Test func keyHintsShowTheLeaderKeysAsOneRow() {
+        var c = Config()
+        func k(_ s: String) -> KeyCombo { KeyCombo(parsing: s)! }
+        c.leaderKeys = [k("right-cmd"), k("f20")]
+        c.modes["control"] = [k("right-cmd"): "workspace-back-and-forth", k("f20"): "workspace-back-and-forth"]
+        c.bindingLabels["control"] = [k("right-cmd"): "last", k("f20"): "last"]
+        #expect(c.keyHints(for: "control") == [KeyHint(combo: .leader, label: "last", isGroup: false)])
+        // Different scripts: each key keeps its row.
+        c.modes["control"]![k("f20")] = "focus next"
+        #expect(c.keyHints(for: "control").map(\.combo) == [k("f20"), k("right-cmd")])
+    }
 }

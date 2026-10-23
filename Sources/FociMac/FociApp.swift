@@ -14,6 +14,8 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     private var engine: Engine?
     private var refreshScheduled = false
     private var timer: Timer?
+    /// Closes the submenu, or ends repeating, when no key comes.
+    private var modeTimeout: Timer?
     private var configDate: Date?
     private var configProblems: [String] = []
     private var hotkeyProblems: [String] = []
@@ -76,17 +78,22 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         engine.onBindingsChange = { [weak self] in
             self?.bindHotkeys()
             self?.updateKeyHints()
+            self?.restartModeTimeout()
         }
         engine.onChange = { [weak self] in
             self?.updateMenu()
             self?.cliServer.publish(CLIHandler(engine: engine).status())
         }
         engine.onLog = { [log] in log.info("\($0, privacy: .public)") }
-        hotkeys.onHotkey = { [weak self] script in
-            self?.run(script, pressed: true)
+        hotkeys.onHotkey = { [weak self] combo in
+            guard let self, let script = self.engine?.bindings[combo] else { return }
+            self.run(script, key: combo)
             // A key that stays in the mode (resize) restarts the wait; a mode change already updated the hints.
-            if self?.keyHints.isVisible == false { self?.updateKeyHints() }
+            if !self.keyHints.isVisible { self.updateKeyHints() }
+            self.restartModeTimeout()
         }
+        // A key the submenu doesn't bind, or a click: the user is doing something else.
+        hotkeys.onOtherInput = { [weak self] in self?.closeMode() }
         menu.onCommand = { [weak self] script, window in self?.run(script, window: window) }
         windowSystem.onEvent = { [weak self] in self?.scheduleRefresh() }
 
@@ -137,12 +144,12 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// `pressed`: a key of the current mode, see `Engine.press`.
-    private func run(_ script: String, window: WindowID? = nil, pressed: Bool = false) {
+    /// `key`: the key of the current mode bound to `script`, see `Engine.press`.
+    private func run(_ script: String, window: WindowID? = nil, key: KeyCombo? = nil) {
         guard let engine else { return }
         log.info("run: \(script, privacy: .public)\(window.map { " on \($0)" } ?? "", privacy: .public)")
         if script.contains("reload-config") { configDate = configSource.modificationDate }
-        let errors = pressed ? engine.press(script) : engine.run(script, window: window)
+        let errors = key.map { engine.press($0) } ?? engine.run(script, window: window)
         for e in errors { log.error("\(script, privacy: .public): \(e, privacy: .public)") }
         if script.contains("reload-config") {
             configProblems = errors + [LoginItem.apply(engine.config.startAtLogin)].compactMap { $0 }
@@ -153,6 +160,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     private func bindHotkeys() {
         guard let engine else { return }
         hotkeyProblems = hotkeys.register(engine.bindings)
+        hotkeys.reportsOtherInput = engine.mode != "main"
         for e in hotkeyProblems { log.error("\(e, privacy: .public)") }
         updateMenu()
     }
@@ -160,7 +168,9 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     /// which-key: in any mode but `main`, list the mode's keys once no key was pressed for `key-hints-delay`.
     /// Moving to another mode while the hints are up shows its keys at once.
     private func updateKeyHints() {
-        guard let engine, engine.config.keyHints, engine.mode != "main" else { return keyHints.hide() }
+        guard let engine, engine.config.keyHints, engine.mode != "main", !engine.isRepeating else {
+            return keyHints.hide()
+        }
         let display = engine.display(of: engine.focusedWorkspace).id.raw
         let screen = NSScreen.screens.first {
             ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == display
@@ -168,6 +178,23 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         keyHints.show(
             title: engine.modeTitle, hints: engine.keyHints, on: screen,
             after: keyHints.isVisible ? 0 : engine.config.keyHintsDelay)
+    }
+
+    /// `leader-timeout` after the last key in a submenu, `repeat-timeout` while repeating.
+    private func restartModeTimeout() {
+        modeTimeout?.invalidate()
+        modeTimeout = nil
+        guard let engine, engine.mode != "main" else { return }
+        let seconds = engine.isRepeating ? engine.config.repeatTimeout : engine.config.leaderTimeout
+        guard seconds > 0 else { return }
+        modeTimeout = Timer.scheduledTimer(withTimeInterval: seconds, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.closeMode() }
+        }
+    }
+
+    private func closeMode() {
+        guard engine?.mode != "main" else { return }
+        run("mode main")
     }
 
     private func updateMenu() {

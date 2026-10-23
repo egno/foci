@@ -204,6 +204,27 @@ struct EngineTests {
         #expect(h.ws.frame(1) == Display.left.visibleFrame)
     }
 
+    @Test func moveWindowToOtherDisplay() {
+        let h = Harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
+        h.engine.run("workspace w")
+        h.ws.focused = WindowID(1)
+        h.engine.run("move-to-display next")
+        #expect(h.record(1)?.workspace == "s")
+        #expect(h.ws.frame(1) == Display.right.visibleFrame)
+        #expect(h.engine.focusedWorkspace == "w")
+        h.ws.focused = WindowID(1)
+        h.engine.run("move-to-display --follow prev")
+        #expect(h.record(1)?.workspace == "w")
+        #expect(h.engine.focusedWorkspace == "w")
+        h.engine.run("focus-display next")
+        h.ws.focused = WindowID(1)
+        h.engine.run("focus-display prev; move-to-display --follow next")
+        #expect(h.engine.focusedWorkspace == "s")
+        #expect(h.ws.frame(1) == Display.right.visibleFrame)
+        #expect(throws: Command.ParseError.self) { try Command.parse("move-to-display up") }
+    }
+
     @Test func moveWorkspaceToOtherDisplay() {
         let h = Harness()
         h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
@@ -433,7 +454,7 @@ struct TargetWindowTests {
         config.modeLabels = ["control": "Foci", "move": "Move"]
         let h = Harness(config: config)
         h.engine.refresh()
-        func press(_ key: String) { h.engine.press(h.engine.bindings[KeyCombo(parsing: key)!]!) }
+        func press(_ key: String) { h.engine.press(KeyCombo(parsing: key)!) }
 
         h.engine.run("mode control")
         press("w")
@@ -457,6 +478,43 @@ struct TargetWindowTests {
         press("backspace")
         #expect(h.engine.mode == "control")
         #expect(h.engine.bindings[KeyCombo(parsing: "backspace")!] == "mode main")
+    }
+
+    @Test func repeatKeysKeepTheModeWithOnlyThemselves() {
+        var config = Config.sample
+        config.modes["control"] = ["j": "focus next", "k": "focus prev", "w": "workspace w", "m": "mode move"]
+            .reduce(into: [:]) { $0[KeyCombo(parsing: $1.key)!] = $1.value }
+        config.modes["move"] = [KeyCombo(parsing: "w")!: "move-to-workspace w"]
+        config.repeatKeys["control"] = [KeyCombo(parsing: "j")!, KeyCombo(parsing: "k")!]
+        let h = Harness(config: config)
+        h.engine.refresh()
+        func press(_ key: String) { h.engine.press(KeyCombo(parsing: key)!) }
+        func keys() -> Set<String> { Set(h.engine.bindings.keys.map(\.description)) }
+
+        h.engine.run("mode control")
+        #expect(!h.engine.isRepeating)
+        press("j")
+        #expect(h.engine.mode == "control")
+        #expect(h.engine.isRepeating)
+        // Other keys reach the app; esc still closes.
+        #expect(keys() == ["j", "k", "esc"])
+        press("k")
+        #expect(h.engine.isRepeating)
+        press("w")
+        #expect(h.engine.mode == "control")
+        press("esc")
+        #expect(h.engine.mode == "main")
+        #expect(!h.engine.isRepeating)
+
+        // A non-repeat key closes as usual; a new leader starts without repeating.
+        h.engine.run("mode control")
+        #expect(keys().contains("w"))
+        press("w")
+        #expect(h.engine.mode == "main")
+        h.engine.run("mode control")
+        press("m")
+        #expect(h.engine.mode == "move")
+        #expect(!h.engine.isRepeating)
     }
 
     @Test func displaysComeAndGoAndWorkspacesFollow() {

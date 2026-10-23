@@ -16,9 +16,16 @@ extension Config {
     /// The keys of a mode as which-key shows them: keys before groups; digits and letters, then named keys
     /// (`esc`, `left`), each alphabetical; plain key before modified.
     /// `bindings` replaces the mode's own, e.g. to add built-in keys.
+    /// The leader keys show as one `leader` row when they all run the same script.
     public func keyHints(for mode: String, bindings: [KeyCombo: String]? = nil) -> [KeyHint] {
-        let labels = bindingLabels[mode] ?? [:]
-        return (bindings ?? modes[mode] ?? [:]).map { combo, script in
+        var labels = bindingLabels[mode] ?? [:]
+        var bindings = bindings ?? modes[mode] ?? [:]
+        if let first = leaderKeys.first, let script = bindings[first], leaderKeys.allSatisfy({ bindings[$0] == script }) {
+            labels[.leader] = labels[first]
+            for k in leaderKeys { bindings[k] = nil }
+            bindings[.leader] = script
+        }
+        return bindings.map { combo, script in
             let commands = (try? Command.parseScript(script)) ?? []
             if commands.count == 1, case .mode(let target) = commands[0], target != "main" {
                 return KeyHint(combo: combo, label: labels[combo] ?? modeLabels[target] ?? target, isGroup: true)
