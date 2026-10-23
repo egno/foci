@@ -108,7 +108,7 @@ public final class AXWindowSystem: WindowSystem {
         let joined = summary.sorted().joined(separator: "\n")
         if joined != lastSummary {
             lastSummary = joined
-            log.info("windows:\n\(joined, privacy: .public)")
+            log.debug("windows:\n\(joined, privacy: .public)")
         }
         windowsByID = seen
         observedWindows.formIntersection(seen.keys)

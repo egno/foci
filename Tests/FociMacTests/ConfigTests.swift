@@ -8,6 +8,7 @@ struct ConfigTests {
     @Test func defaultConfigParsesValidatesAndUsesKnownKeys() throws {
         let c = try TOMLConfigSource.parse(DefaultConfig.text)
         #expect(c.validate() == [])
+        #expect(c.startAtLogin)
         #expect(c.projects.map(\.name) == ["p", "bil", "iam", "gc"])
         #expect(c.workspaces["x"] == .secondary)
         #expect(c.apps["chrome"]?.newWindows == .activeProject)

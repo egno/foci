@@ -10,6 +10,7 @@ enum DefaultConfig {
         # - On screen: windows of each display's workspace that are unlinked or linked to the active project.
         #   Everything else is parked off-screen.
 
+        start-at-login = true
         gap = 0
 
         # 'maximized': every window fills the display, 'focus next|prev' cycles through them.

@@ -1,6 +1,8 @@
 import Foundation
 
 public struct Config: Equatable, Sendable {
+    /// Register Foci as a login item.
+    public var startAtLogin = false
     /// Gap in points around and between windows.
     public var gap: Double = 0
     /// Workspace name → display spec, see `DisplaySpec`. Every workspace lives on exactly one display.

@@ -99,7 +99,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         configDate = configSource.modificationDate
         do {
             let c = try configSource.load()
-            configProblems = c.validate()
+            configProblems = c.validate() + [LoginItem.apply(c.startAtLogin)].compactMap { $0 }
             return c
         } catch {
             configProblems = ["config: \(error)"]
@@ -113,7 +113,9 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         if script.contains("reload-config") { configDate = configSource.modificationDate }
         let errors = engine.run(script, window: window)
         for e in errors { log.error("\(script, privacy: .public): \(e, privacy: .public)") }
-        if script.contains("reload-config") { configProblems = errors }
+        if script.contains("reload-config") {
+            configProblems = errors + [LoginItem.apply(engine.config.startAtLogin)].compactMap { $0 }
+        }
         updateMenu()
     }
 

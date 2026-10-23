@@ -32,6 +32,9 @@ make install                   # builds build/Foci.app, installs to ~/Applicatio
 make log                       # follow the log
 ```
 
+With `start-at-login = true` (the default config) Foci registers itself as a login item; macOS may ask you to allow
+it in System Settings → General → Login Items.
+
 On first start Foci asks for the Accessibility permission and writes an example config to
 `~/.config/foci/config.toml`. The config is reloaded on save; problems appear in the menu bar menu (⚠).
 State (links, active project and workspaces) is kept in `~/Library/Application Support/Foci/state.json`.

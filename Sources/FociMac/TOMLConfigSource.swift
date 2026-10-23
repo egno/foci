@@ -42,7 +42,9 @@ public final class TOMLConfigSource: ConfigSource {
             throw ConfigError("line \(e.source.begin.line): \(e.description)")
         }
         var c = Config()
-        try checkKeys(root, ["gap", "default-layout", "workspaces", "apps", "projects", "mode"], at: "top level")
+        try checkKeys(
+            root, ["start-at-login", "gap", "default-layout", "workspaces", "apps", "projects", "mode"], at: "top level")
+        if let v = root["start-at-login"] { c.startAtLogin = try bool(v, "start-at-login") }
 
         if let gap = root["gap"] { c.gap = try number(gap, "gap") }
         if let l = root["default-layout"] { c.defaultLayout.kind = try layoutKind(l, "default-layout") }
