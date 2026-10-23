@@ -5,9 +5,11 @@ A small macOS window manager for working on one project at a time, keyboard firs
 - **Projects.** A window is either *linked* to one project or *unlinked*. Switching projects shows the target
   project's windows where they were and hides other projects' windows on all displays. Unlinked windows are never
   touched by project switching.
-- **Workspaces**, AeroSpace style. Every workspace lives on one display, and each display shows one workspace at a
-  time. Workspace names are shared by all projects: `w` is "web" in every project and shows only the active
-  project's browser windows (plus unlinked ones).
+- **Workspaces**, AeroSpace style. Every letter is a workspace. Each one lives on one display, and each display
+  shows one workspace at a time. Workspace names are shared by all projects: `w` is "web" in every project and
+  shows only the active project's browser windows (plus unlinked ones). Displays are followed as they come and
+  go: a reconnected display shows its last workspace again, and the focused workspace follows its windows off a
+  disconnected one.
 - **Maximized by default, tiles on demand.** Each workspace is `maximized` (windows fill the display, `focus next|prev`
   cycles) or `tiles` (side by side on landscape, stacked on portrait; `move`, `resize`, `balance`). The layout is
   remembered per project and workspace. `float` takes a window out of the layout.
@@ -18,25 +20,45 @@ A small macOS window manager for working on one project at a time, keyboard firs
   in: the project's first app with `open-url`, in its last focused window. The opener is the app that sent the
   link, or the nearest parent process with windows (a terminal running `open`, `gh --web`). Links from unlinked
   windows go to the active project. Outside any project, `browser` opens them in an unlinked window.
-- **Leader key and submenus**, like AstroNvim. The leader (`leader = ['right-cmd', 'f20', 'ctrl-esc']`: right ⌘ tapped alone,
-  or a key) opens a menu of single plain keys: every letter is a workspace, leader twice goes to the last workspace,
-  arrows focus, `enter` layout toggle, `tab` next display, and submenus `space` project,
-  `.` move, `,` go with window, `/` layout, `|` link, `;` config. In binding keys `leader` stands for all the leader
-  keys and `{workspace}` for every letter (`'{workspace}' = 'workspace {workspace}'`). Modes other than `main` are one-shot: a key acts and Foci returns to `main`, unless the key
-  enters another mode or the mode is `sticky = true`. In every submenu `esc` closes and `backspace` goes up
-  one level. A submenu also closes after `leader-timeout` ms (5000), on a click, and on a key it doesn't bind
-  (the key still reaches the app).
+- **Leader key and submenus**, like AstroNvim. The leader (`leader = ['right-cmd', 'f20', 'ctrl-esc']`: right ⌘
+  tapped alone, or a key) opens a menu of single plain keys:
+
+  | Key | Does |
+  |---|---|
+  | `a`–`z` | workspace |
+  | leader | last workspace |
+  | arrows | focus |
+  | `enter` | toggle layout |
+  | `tab` | next display |
+  | `space` | +project (letters, arrows cycle, `n` no project) |
+  | `.` | +move (arrows, `tab` window to next display, `space` workspace to next display) |
+  | `,` | +go with window |
+  | `/` | +layout |
+  | `\|` | +link (`l` to the active project, `n` unlink) |
+  | `~` | +launch: launch or focus the active project's window of an app, keyed by its workspace |
+  | `;` | +config (`r` reload, `e` edit) |
+
+  In binding keys `leader` stands for all the leader keys and `{workspace}` for every letter
+  (`'{workspace}' = 'workspace {workspace}'`). Modes other than `main` are one-shot: a key acts and Foci returns
+  to `main`, unless the key enters another mode or the mode is `sticky = true`. In every submenu `esc` closes and
+  `backspace` goes up one level. A submenu also closes after `leader-timeout` ms (5000), on a click, and on a key
+  it doesn't bind (the key still reaches the app).
 - **Repeat keys**, like Emacs's repeat-mode: after a key with `repeat = true` acts (focus, move, resize), only
   the repeat keys of its mode stay bound for `repeat-timeout` ms (1000), so `leader → → →`. Any other key
   goes to the app.
 - **Key hints**, like which-key: if no key is pressed for `key-hints-delay` ms (300), a popup at the bottom
   of the focused display lists the next keys, titled with the path (`Foci › Move`). Submenus show as
-  `+label`. Keys that do the same with their own key show as one row: `a-z → workspace`. Name things with `[mode.<name>] label = '...'` and `key = { run = '...', label = '...' }`.
+  `+label`. Keys that do the same with their own key show as one row: `a-z → workspace`. Name things with
+  `[mode.<name>] label = '...'` and `key = { run = '...', label = '...' }`.
 - **Menu bar**, like AeroSpace's experimental UI: the project, the workspace shown on each display as a
   lettered square (focused one filled), hidden workspaces with windows dimmed, and the mode while in a
-  submenu. `menu-bar-style = 'i3' | 'squares' | 'text'`.
+  submenu. `menu-bar-style = 'i3' | 'squares' | 'text'`. The menu lists projects, one submenu of workspaces per
+  display, the layout of the focused workspace and the windows. ⌘-drag the item where you want it; the place sticks
+  across launches.
 - **Autostart.** When you switch to a workspace and the active project has no window of an app that belongs
-  there, Foci launches it (per app, configurable).
+  there, Foci launches it (per app, configurable). `launch <app>` does the same on demand, or focuses the window
+  if there is one. A project's `open` items (`{ app = 'cursor', open = ['~/src/bil'] }`) are substituted, quoted,
+  into the app's `{open}`.
 
 Hidden windows are parked off-screen in a bottom corner of their display, one window at a time (like AeroSpace).
 This lets windows of one process (one Chrome) belong to different projects. On quit Foci puts every window
@@ -91,7 +113,9 @@ Exit codes: 0 ok, 1 command failed, 2 usage error, 3 app not running.
 | `FociMac` | Adapters: Accessibility (`AXWindowSystem`), Carbon hotkeys, TOML config, JSON state, shell launcher, menu bar, `FociApp` (wiring). |
 | `foci` | Executable: single-instance lock, starts `FociApp`. |
 
-Core tests run the engine against in-memory fakes (`Tests/FociCoreTests/Fakes.swift`).
+Core tests run the engine against in-memory fakes (`Tests/FociCoreTests/Fakes.swift`); `Tests/FociMacTests` checks
+the TOML config. `Tests/E2E/SCENARIOS.md` describes end-to-end scenarios against the installed app and real windows
+(manual for now).
 
 ## Roadmap
 
@@ -100,3 +124,4 @@ Core tests run the engine against in-memory fakes (`Tests/FociCoreTests/Fakes.sw
 2. **M2:** tiling layout per project+workspace, move, resize, balance.
 3. **M3:** `foci` CLI over a Unix socket, `subscribe` for status bars.
 4. **M4:** URL router: open links in the opener project's browser window.
+5. **M5:** leader key with submenus, key hints, repeat keys; displays connected and disconnected at runtime.

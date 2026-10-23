@@ -70,7 +70,8 @@ enum DefaultConfig {
         # args / title   regexes over the process command line / window title. {project} = project name.
         #                With {project}: windows that match link to that project.
         # workspace      where new windows of the app go
-        # launch         shell command (login shell) starting the app for a project; {project}, {open}
+        # launch         shell command (login shell) starting the app for a project; {project}, and {open} = the
+        #                project's 'open' items, quoted ({ app = 'cursor', open = ['~/src/bil'] })
         # global-launch  shell command starting the app when no project uses it
         # open-url       shell command opening a link for a project; {url} (already quoted), {project}.
         #                Foci focuses the project's window of the app first, so the tab opens there. Without a
@@ -107,7 +108,7 @@ enum DefaultConfig {
         bundle-id = 'com.todesktop.230313mzl4w4u92'
         args = '--user-data-dir[= ].*/\.cursor-projects/{project}( |$)'
         workspace = 'c'
-        launch = 'cursor --user-data-dir "$HOME/.cursor-projects/{project}" {open}'
+        launch = 'cursor --user-data-dir "$HOME/.cursor-projects/{project}"'
         global-launch = 'open -na Cursor'
 
         [apps.dbeaver]
@@ -115,14 +116,13 @@ enum DefaultConfig {
         args = '-data .*/\.dbeaver-projects/{project}( |$)'
         workspace = 'd'
         launch = 'open -na DBeaver --args -data "$HOME/.dbeaver-projects/{project}"'
-        global-launch = 'open -a DBeaver'
+        global-launch = 'open -na DBeaver'
 
-        # No {project}: every Firefox window belongs to the one project that uses it.
+        # No {project}: every Firefox window belongs to the one project that uses it, so no global-launch.
         [apps.firefox]
         bundle-id = 'org.mozilla.firefox'
         workspace = 'f'
         launch = 'open -a Firefox'
-        global-launch = 'open -a Firefox'
         open-url = 'open -a Firefox {url}'
 
         # Global apps: used by no project, so always unlinked. Listed only to place them on a workspace.
@@ -200,8 +200,7 @@ enum DefaultConfig {
         label = 'Foci'
 
         [mode.control.binding]
-        # Every letter is a workspace, right after the leader. Workspaces not in [workspaces] live on the
-        # display where they were first used.
+        # Every letter is a workspace, right after the leader.
         '{workspace}' = 'workspace {workspace}'
 
         space = 'mode project'
@@ -225,9 +224,10 @@ enum DefaultConfig {
         slash = 'mode layout'
         # '|' and '~' are shift-backslash and shift-backtick (one key on some keyboards).
         shift-backslash = 'mode link'
-        semicolon = 'mode foci'
+        shift-backtick = 'mode launch'
+        semicolon = 'mode config'
 
-        # Projects by first letter; j/k cycle.
+        # Projects by first letter; arrows cycle.
         [mode.project]
         label = 'Project'
 
@@ -237,8 +237,6 @@ enum DefaultConfig {
         i = 'project iam'
         g = 'project gc'
         n = { run = 'project --none', label = 'no project' }
-        j = { run = 'project next', repeat = true }
-        k = { run = 'project prev', repeat = true }
         right = { run = 'project next', repeat = true }
         down = { run = 'project next', repeat = true }
         left = { run = 'project prev', repeat = true }
@@ -253,7 +251,8 @@ enum DefaultConfig {
         down = { run = 'move next', repeat = true }
         left = { run = 'move prev', repeat = true }
         up = { run = 'move prev', repeat = true }
-        tab = { run = 'move-workspace-to-display next', label = 'workspace to next display' }
+        tab = { run = 'move-to-display next', label = 'to next display' }
+        space = { run = 'move-workspace-to-display next', label = 'workspace to next display' }
 
         [mode.go]
         label = 'Go with window'
@@ -283,12 +282,23 @@ enum DefaultConfig {
         i = 'link iam'
         g = 'link gc'
         l = { run = 'link --active', label = 'link to the active project' }
-        u = 'unlink'
+        n = 'unlink'
 
-        [mode.foci]
+        # Launch, or focus, the active project's window of an app: the key is the app's workspace.
+        [mode.launch]
+        label = 'Launch'
+
+        [mode.launch.binding]
+        w = 'launch chrome'
+        c = 'launch cursor'
+        x = 'launch kitty'
+        d = 'launch dbeaver'
+        f = 'launch firefox'
+
+        [mode.config]
         label = 'Config'
 
-        [mode.foci.binding]
+        [mode.config.binding]
         r = 'reload-config'
         e = { run = 'exec open -t ~/.config/foci/config.toml', label = 'edit config' }
         """#

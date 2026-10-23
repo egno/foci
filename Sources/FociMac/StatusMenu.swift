@@ -98,27 +98,42 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(command("No Project", "project --none", checked: engine.activeProject == nil))
         menu.addItem(.separator())
 
+        // One row per display, the workspaces in a submenu: every letter can be a workspace, too many rows for a
+        // laptop screen.
         let displays = sortedDisplays(engine)
+        menu.addItem(header("Workspaces"))
         for d in displays {
-            menu.addItem(header("Workspaces · \(d.name)"))
             let active = engine.state.activeWorkspace[d.id]
+            let sub = NSMenu()
+            sub.autoenablesItems = false
             for ws in engine.workspaces(on: d) {
                 let i = command(ws, "workspace \(ws)", checked: ws == active)
                 if ws == engine.focusedWorkspace { i.title += "  ◂" }
-                menu.addItem(i)
+                sub.addItem(i)
             }
-        }
-        if displays.count > 1 {
-            menu.addItem(command("Move \"\(engine.focusedWorkspace)\" to Next Display", "move-workspace-to-display next"))
+            if displays.count > 1, active == engine.focusedWorkspace {
+                sub.addItem(.separator())
+                sub.addItem(command("Move \"\(engine.focusedWorkspace)\" to Next Display", "move-workspace-to-display next"))
+            }
+            let item = NSMenuItem(title: "\(d.name): \(active ?? "–")", action: nil, keyEquivalent: "")
+            if active == engine.focusedWorkspace, displays.count > 1 { item.title += "  ◂" }
+            item.submenu = sub
+            menu.addItem(item)
         }
         menu.addItem(.separator())
 
         let layout = engine.layout(of: engine.focusedWorkspace)
-        menu.addItem(header("Layout · \(engine.focusedWorkspace)"))
-        menu.addItem(command("Maximized", "layout maximized", checked: layout.kind == .maximized))
-        menu.addItem(command("Tiles", "layout tiles", checked: layout.kind == .tiles))
-        menu.addItem(command("Rotate Tiles", "layout toggle-orientation"))
-        menu.addItem(command("Balance Tiles", "balance", enabled: layout.kind == .tiles))
+        let layoutMenu = NSMenu()
+        layoutMenu.autoenablesItems = false
+        layoutMenu.addItem(command("Maximized", "layout maximized", checked: layout.kind == .maximized))
+        layoutMenu.addItem(command("Tiles", "layout tiles", checked: layout.kind == .tiles))
+        layoutMenu.addItem(command("Rotate Tiles", "layout toggle-orientation"))
+        layoutMenu.addItem(command("Balance Tiles", "balance", enabled: layout.kind == .tiles))
+        let layoutItem = NSMenuItem(
+            title: "Layout · \(engine.focusedWorkspace): \(layout.kind == .tiles ? "Tiles" : "Maximized")",
+            action: nil, keyEquivalent: "")
+        layoutItem.submenu = layoutMenu
+        menu.addItem(layoutItem)
         menu.addItem(.separator())
 
         let windows = engine.windowList()
