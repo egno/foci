@@ -3,8 +3,8 @@ import FociCore
 import SwiftUI
 
 /// The menu bar label as an image, after AeroSpace's experimental UI: the mode as a circled letter, the project
-/// in a frame, workspaces as lettered squares (focused filled). Rendered as a template image, so the menu bar
-/// tints it for light and dark mode; dimmed parts are drawn with less opacity.
+/// in capitals, workspaces as lettered squares (focused filled). Rendered as a template image, so the
+/// menu bar tints it for light and dark mode; dimmed parts are drawn with less opacity.
 @MainActor
 enum MenuBarLabel {
     struct Workspace: Equatable {
@@ -66,17 +66,16 @@ private struct LabelView: View {
                 badge(String(mode.prefix(1)), shape: "circle", filled: false)
                 Text(":").font(Self.font)
             }
+            // No frame: boxes are workspaces.
             Text(content.project?.uppercased() ?? "–")
                 .font(Self.font)
-                .padding(.horizontal, 4)
                 .frame(height: Self.size)
-                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(lineWidth: 1.5))
                 .opacity(content.project == nil ? 0.5 : 1)
-                .padding(.trailing, 3)
+            Text("›").font(Self.font).opacity(0.5).padding(.trailing, 2)
             ForEach(content.displays.indices, id: \.self) { d in
                 if d > 0 { Text("|").font(Self.font).opacity(0.5) }
                 ForEach(content.displays[d], id: \.name) { ws in
-                    badge(ws.name, shape: "square", filled: ws.focused).opacity(ws.shown ? 1 : 0.45)
+                    badge(ws.name.uppercased(), shape: "square", filled: ws.focused).opacity(ws.shown ? 1 : 0.45)
                 }
             }
             if content.warning {
@@ -96,17 +95,22 @@ private struct LabelView: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: Self.size, height: Self.size)
         } else {
-            // Longer names: the text in a rounded box, knocked out of a filled one when focused.
-            let text = Text(name).font(Self.font).padding(.horizontal, 3).frame(height: Self.size)
-            if filled {
-                ZStack {
-                    text.background(RoundedRectangle(cornerRadius: 4))
-                    text.blendMode(.destinationOut)
-                }
-                .compositingGroup()
-            } else {
-                text.overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(lineWidth: 1.5))
+            box(name, filled: filled)
+        }
+    }
+
+    /// Longer names: the text in a rounded box, at least square, knocked out of a filled one.
+    @ViewBuilder
+    private func box(_ name: String, filled: Bool) -> some View {
+        let text = Text(name).font(Self.font).padding(.horizontal, 3).frame(minWidth: Self.size, minHeight: Self.size)
+        if filled {
+            ZStack {
+                text.background(RoundedRectangle(cornerRadius: 4))
+                text.blendMode(.destinationOut)
             }
+            .compositingGroup()
+        } else {
+            text.overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(lineWidth: 1.5))
         }
     }
 }

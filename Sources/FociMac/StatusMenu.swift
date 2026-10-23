@@ -94,7 +94,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let projects = engine.config.projects.map(\.name)
 
         menu.addItem(header("Project"))
-        for p in projects { menu.addItem(command(p, "project \(p)", checked: engine.activeProject == p)) }
+        for p in projects { menu.addItem(command(p.uppercased(), "project \(p)", checked: engine.activeProject == p)) }
         menu.addItem(command("No Project", "project --none", checked: engine.activeProject == nil))
         menu.addItem(.separator())
 
@@ -158,7 +158,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private func windowItem(_ w: Engine.WindowInfo, engine: Engine, projects: [String]) -> NSMenuItem {
         var title = w.facts.title.isEmpty ? w.facts.appName : "\(w.facts.appName) — \(w.facts.title)"
         if title.count > 60 { title = String(title.prefix(59)) + "…" }
-        let tag = [w.record.owner, w.record.floating ? "float" : nil].compactMap { $0 }.joined(separator: ", ")
+        let tag = [w.record.owner?.uppercased(), w.record.floating ? "float" : nil].compactMap { $0 }.joined(separator: ", ")
         if !tag.isEmpty { title += "   [\(tag)]" }
 
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
@@ -169,7 +169,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         sub.addItem(.separator())
         sub.addItem(header("Link to Project"))
         for p in projects {
-            sub.addItem(command(p, "link \(p)", window: w.id, checked: w.record.owner == p))
+            sub.addItem(command(p.uppercased(), "link \(p)", window: w.id, checked: w.record.owner == p))
         }
         sub.addItem(command("Unlinked", "unlink", window: w.id, checked: w.record.owner == nil))
         sub.addItem(.separator())
