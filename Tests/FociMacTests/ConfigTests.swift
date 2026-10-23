@@ -59,6 +59,23 @@ struct ConfigTests {
         #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("default-layout = 'bsp'") }
     }
 
+    /// These crash toml++ inside TOMLKit if they reach it.
+    @Test func tableHeadersWithoutAKeyAreErrorsNotCrashes() throws {
+        for bad in ["[[[ not toml", "gap = 1\n[=]", "[#]", "[[ .a]]", "[ \n", "["] {
+            #expect(throws: ConfigError.self, "\(bad)") { try TOMLConfigSource.checkTableHeaders(bad) }
+        }
+        #expect(throws: ConfigError("line 3: expected a key in the table header")) {
+            try TOMLConfigSource.checkTableHeaders("a = 1\n\n  [[[x]]]")
+        }
+        // A '[' in a value is not a header.
+        for good in [
+            "[apps.x]\n[[projects]]\n[ \"a b\" ]\n['c']\n[]", "leader = [\n  [1, 2],\n  [{ a = 1 }],\n]\n[t]",
+            "s = '''\n[#\n'''", "s = \"\"\"\n[=\"\"\"\"\n[t]", "s = \"a\\\"[\"\n# [=\n[t]",
+        ] {
+            #expect(throws: Never.self, "\(good)") { try TOMLConfigSource.checkTableHeaders(good) }
+        }
+    }
+
     @Test func browserMustHaveGlobalOpenURL() throws {
         let c = try TOMLConfigSource.parse("browser = 'ff'\n[apps.ff]\nopen-url = 'open -a Firefox {url}'")
         #expect(c.validate() == ["browser: app 'ff' has no global-open-url command"])

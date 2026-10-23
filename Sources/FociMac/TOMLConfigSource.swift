@@ -2,7 +2,7 @@ import FociCore
 import Foundation
 import TOMLKit
 
-public struct ConfigError: Error, CustomStringConvertible {
+public struct ConfigError: Error, Equatable, CustomStringConvertible {
     public let description: String
     init(_ d: String) { description = d }
 }
@@ -35,6 +35,7 @@ public final class TOMLConfigSource: ConfigSource {
     }
 
     public static func parse(_ text: String) throws -> Config {
+        try checkTableHeaders(text)
         let root: TOMLTable
         do {
             root = try TOMLTable(string: text)
@@ -289,5 +290,79 @@ public final class TOMLConfigSource: ConfigSource {
         if let d = v.double { return d }
         if let i = v.int { return Double(i) }
         throw ConfigError("\(at): expected a number")
+    }
+
+    /// toml++ 3.4 (inside TOMLKit) asserts, or with NDEBUG assumes, that a table header's key starts with a key
+    /// character: `[[[`, `[=` or `[#` crash Foci. Reject those before parsing. Follows strings, comments and
+    /// multi-line arrays, so a `[` inside a value is never taken for a header.
+    static func checkTableHeaders(_ text: String) throws {
+        let s = Array(text.unicodeScalars)
+        var i = 0
+        var line = 1
+        var depth = 0  // open [ and { of values
+        var atLineStart = true
+        func at(_ j: Int) -> Unicode.Scalar? { j < s.count ? s[j] : nil }
+        func isBlank(_ c: Unicode.Scalar?) -> Bool { c.map { $0 != "\n" && $0 != "\r" && $0.properties.isWhitespace } ?? false }
+        func startsKey(_ c: Unicode.Scalar?) -> Bool {
+            guard let c else { return false }
+            return c.isASCII && (CharacterSet.alphanumerics.contains(c) || "_-\"']".unicodeScalars.contains(c))
+        }
+        /// Skips a string starting at `i`; `quote` is `"` or `'`.
+        func skipString(_ quote: Unicode.Scalar) {
+            let multi = at(i + 1) == quote && at(i + 2) == quote
+            i += multi ? 3 : 1
+            while let c = at(i) {
+                if c == "\n" {
+                    line += 1
+                    if !multi { return }  // unterminated: the parser reports it
+                }
+                if c == "\\" && quote == "\"" {
+                    if at(i + 1) == "\n" { line += 1 }
+                    i += 2
+                    continue
+                }
+                if c == quote && (!multi || (at(i + 1) == quote && at(i + 2) == quote)) {
+                    i += multi ? 3 : 1
+                    while multi && at(i) == quote { i += 1 }  // """a"""" ends with a quote in the string
+                    return
+                }
+                i += 1
+            }
+        }
+        while let c = at(i) {
+            if c == "\n" {
+                line += 1
+                atLineStart = true
+                i += 1
+                continue
+            }
+            if atLineStart && isBlank(c) {
+                i += 1
+                continue
+            }
+            if atLineStart && depth == 0 && c == "[" {
+                var j = i + 1
+                while isBlank(at(j)) { j += 1 }
+                if at(j) == "[" && j == i + 1 {
+                    j += 1
+                    while isBlank(at(j)) { j += 1 }
+                }
+                guard startsKey(at(j)) else { throw ConfigError("line \(line): expected a key in the table header") }
+                while let d = at(i), d != "\n" { i += 1 }  // the rest is the header
+                continue
+            }
+            atLineStart = false
+            switch c {
+            case "#": while let d = at(i), d != "\n" { i += 1 }
+            case "\"", "'": skipString(c)
+            case "[", "{":
+                depth += 1
+                i += 1
+            case "]", "}":
+                depth = max(depth - 1, 0)
+                i += 1
+            default: i += 1
+            }
+        }
     }
 }
