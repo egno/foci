@@ -176,10 +176,12 @@ enum DefaultConfig {
         # 'main', unless the key enters another mode or the mode is 'sticky = true'. In every submenu 'esc' closes
         # and 'backspace' goes up one level, unless bound. [mode.<name>] label = '...' names the submenu in key hints.
 
-        # Global hotkeys need a modifier or an F-key; everything after the leader is a single plain key.
+        # Global hotkeys need a modifier, an F-key or a modifier tapped alone; after the leader, single plain keys.
         [mode.main.binding]
         f20 = 'mode control'
         ctrl-esc = 'mode control'
+        # Tapped alone (right-cmd, left-alt, ...): still a modifier when held with another key.
+        right-cmd = 'mode control'
 
         [mode.control]
         label = 'Foci'

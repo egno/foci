@@ -1,7 +1,10 @@
+import AppKit
 import Carbon.HIToolbox
 import FociCore
 
 /// Global hotkeys via Carbon `RegisterEventHotKey`: needs no Input Monitoring permission.
+/// Modifier keys tapped alone (`right-cmd`) can't be registered there: they are seen by an `NSEvent` monitor
+/// of modifier changes, which needs the Accessibility permission Foci has anyway.
 @MainActor
 public final class Hotkeys {
     /// Receives the command script bound to the pressed key.
@@ -10,6 +13,10 @@ public final class Hotkeys {
     private var refs: [EventHotKeyRef] = []
     private var scripts: [UInt32: String] = [:]
     private var handler: EventHandlerRef?
+    /// Tap key name → script, for the current mode.
+    private var tapScripts: [String: String] = [:]
+    private var taps = TapDetector()
+    private var monitors: [Any] = []
 
     public init() {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
@@ -26,6 +33,12 @@ public final class Hotkeys {
         }
         InstallEventHandler(
             GetApplicationEventTarget(), callback, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
+
+        let mask: NSEvent.EventTypeMask = [.flagsChanged, .keyDown, .leftMouseDown, .rightMouseDown]
+        let handle: (NSEvent) -> Void = { [weak self] event in MainActor.assumeIsolated { self?.observe(event) } }
+        // Global: events going to other apps. Local: to Foci itself (its menu, the key hints never take keys).
+        monitors.append(NSEvent.addGlobalMonitorForEvents(matching: mask, handler: handle) as Any)
+        monitors.append(NSEvent.addLocalMonitorForEvents(matching: mask) { handle($0); return $0 } as Any)
     }
 
     /// Replaces all registered hotkeys. Returns problems (unknown keys, combos taken by another app).
@@ -33,8 +46,13 @@ public final class Hotkeys {
         for r in refs { UnregisterEventHotKey(r) }
         refs = []
         scripts = [:]
+        tapScripts = [:]
         var errors: [String] = []
         for (i, (combo, script)) in bindings.sorted(by: { $0.key.description < $1.key.description }).enumerated() {
+            if KeyCombo.tapKeys.contains(combo.key) {
+                tapScripts[combo.key] = script
+                continue
+            }
             guard let code = Self.keyCodes[combo.key] else {
                 errors.append("unknown key '\(combo.key)' in '\(combo)'")
                 continue
@@ -57,6 +75,20 @@ public final class Hotkeys {
         guard let script = scripts[id] else { return }
         // Not inside the Carbon handler: the command may re-register hotkeys (mode switch).
         DispatchQueue.main.async { [weak self] in self?.onHotkey?(script) }
+    }
+
+    private func observe(_ event: NSEvent) {
+        guard !tapScripts.isEmpty else { return }
+        let tapped: String?
+        if event.type == .flagsChanged, let key = TapDetector.keys[Int(event.keyCode)] {
+            tapped = taps.modifier(key.name, down: event.modifierFlags.rawValue & key.deviceMask != 0, at: event.timestamp)
+        } else {
+            taps.interrupt()  // a key or click while the modifier is held: a shortcut, not a tap
+            tapped = nil
+        }
+        if let tapped, let script = tapScripts[tapped] {
+            DispatchQueue.main.async { [weak self] in self?.onHotkey?(script) }
+        }
     }
 
     private static func carbonModifiers(_ m: Set<Modifier>) -> UInt32 {
@@ -93,4 +125,39 @@ public final class Hotkeys {
         for (i, code) in fKeys.enumerated() { k["f\(i + 1)"] = code }
         return k
     }()
+}
+
+/// A modifier key pressed and released alone, quickly, with nothing else pressed in between.
+struct TapDetector {
+    struct Key {
+        let name: String
+        /// Device-dependent bit of `NSEvent.modifierFlags` (NX_DEVICE*KEYMASK): tells left from right.
+        let deviceMask: UInt
+    }
+
+    static let keys: [Int: Key] = [
+        kVK_Command: Key(name: "left-cmd", deviceMask: 0x08), kVK_RightCommand: Key(name: "right-cmd", deviceMask: 0x10),
+        kVK_Option: Key(name: "left-alt", deviceMask: 0x20), kVK_RightOption: Key(name: "right-alt", deviceMask: 0x40),
+        kVK_Control: Key(name: "left-ctrl", deviceMask: 0x01), kVK_RightControl: Key(name: "right-ctrl", deviceMask: 0x2000),
+        kVK_Shift: Key(name: "left-shift", deviceMask: 0x02), kVK_RightShift: Key(name: "right-shift", deviceMask: 0x04),
+    ]
+
+    /// Longer holds are not taps (holding ⌘ while deciding on a shortcut).
+    static let maxDuration: TimeInterval = 0.5
+
+    private var pressed: (key: String, at: TimeInterval)?
+
+    /// Returns the key if this release completes a tap.
+    mutating func modifier(_ key: String, down: Bool, at time: TimeInterval) -> String? {
+        if down {
+            // A second modifier while one is held (⌘⇧): a chord, not a tap.
+            pressed = pressed == nil ? (key, time) : nil
+            return nil
+        }
+        defer { pressed = nil }
+        guard let p = pressed, p.key == key, time - p.at <= Self.maxDuration else { return nil }
+        return key
+    }
+
+    mutating func interrupt() { pressed = nil }
 }

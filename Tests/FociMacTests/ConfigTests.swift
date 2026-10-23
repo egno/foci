@@ -17,7 +17,7 @@ struct ConfigTests {
         #expect(c.apps["chrome"]?.openURL == #"open -a "Google Chrome" {url}"#)
         for (mode, bindings) in c.modes {
             for combo in bindings.keys {
-                #expect(Hotkeys.keyCodes[combo.key] != nil, "\(mode): \(combo)")
+                #expect(Hotkeys.keyCodes[combo.key] != nil || KeyCombo.tapKeys.contains(combo.key), "\(mode): \(combo)")
             }
         }
     }
@@ -86,6 +86,25 @@ struct ConfigTests {
         #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("[mode.main]\nlabel = 1") }
         #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("key-hints-delay = -1") }
         #expect(try TOMLConfigSource.parse("key-hints = false").keyHints == false)
+    }
+
+    @Test func modifierTaps() {
+        var t = TapDetector()
+        #expect(t.modifier("right-cmd", down: true, at: 0) == nil)
+        #expect(t.modifier("right-cmd", down: false, at: 0.1) == "right-cmd")
+        // Held too long.
+        _ = t.modifier("right-cmd", down: true, at: 1)
+        #expect(t.modifier("right-cmd", down: false, at: 2) == nil)
+        // A shortcut: ⌘C.
+        _ = t.modifier("right-cmd", down: true, at: 3)
+        t.interrupt()
+        #expect(t.modifier("right-cmd", down: false, at: 3.1) == nil)
+        // A chord of modifiers.
+        _ = t.modifier("right-cmd", down: true, at: 4)
+        _ = t.modifier("left-shift", down: true, at: 4.05)
+        #expect(t.modifier("left-shift", down: false, at: 4.1) == nil)
+        #expect(t.modifier("right-cmd", down: false, at: 4.15) == nil)
+        #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "right-cmd")!) == "⌘›")
     }
 
     @Test func menuBarStyle() throws {

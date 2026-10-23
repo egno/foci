@@ -31,6 +31,9 @@ struct ParsingTests {
         #expect(KeyCombo(parsing: "f20") == KeyCombo(modifiers: [], key: "f20"))
         #expect(KeyCombo(parsing: "hyper-p") == nil)
         #expect(KeyCombo(parsing: "alt-") == nil)
+        #expect(KeyCombo(parsing: "Right-Cmd") == KeyCombo(modifiers: [], key: "right-cmd"))
+        #expect(KeyCombo(parsing: "right-cmd")?.description == "right-cmd")
+        #expect(KeyCombo(parsing: "shift-right-cmd") == nil)
     }
 
     @Test func displaySpecs() {

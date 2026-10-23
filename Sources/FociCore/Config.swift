@@ -173,8 +173,13 @@ public enum Modifier: String, CaseIterable, Hashable, Sendable, Comparable {
     public static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
 }
 
-/// e.g. `ctrl-shift-p`, `f20`.
+/// e.g. `ctrl-shift-p`, `f20`, or a modifier key tapped alone: `right-cmd`.
 public struct KeyCombo: Hashable, Sendable, CustomStringConvertible {
+    /// Modifier keys that act as a key when pressed and released alone, like Karabiner's `to_if_alone`.
+    public static let tapKeys: Set<String> = [
+        "left-cmd", "right-cmd", "left-alt", "right-alt", "left-ctrl", "right-ctrl", "left-shift", "right-shift",
+    ]
+
     public let modifiers: Set<Modifier>
     public let key: String
 
@@ -183,6 +188,10 @@ public struct KeyCombo: Hashable, Sendable, CustomStringConvertible {
     }
 
     public init?(parsing s: String) {
+        if Self.tapKeys.contains(s.lowercased()) {
+            self.init(modifiers: [], key: s.lowercased())
+            return
+        }
         var parts = s.lowercased().split(separator: "-", omittingEmptySubsequences: false).map(String.init)
         // "alt-minus" is fine; a literal "-" key is spelled "minus".
         guard let key = parts.popLast(), !key.isEmpty else { return nil }

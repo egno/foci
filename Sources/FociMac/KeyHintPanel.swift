@@ -63,6 +63,8 @@ final class KeyHintPanel {
         "space": "Space", "enter": "↩", "tab": "⇥", "esc": "Esc", "backspace": "⌫",
         "left": "←", "right": "→", "up": "↑", "down": "↓",
         "home": "↖", "end": "↘", "pageup": "⇞", "pagedown": "⇟",
+        "left-cmd": "‹⌘", "right-cmd": "⌘›", "left-alt": "‹⌥", "right-alt": "⌥›",
+        "left-ctrl": "‹⌃", "right-ctrl": "⌃›", "left-shift": "‹⇧", "right-shift": "⇧›",
     ]
 }
 
