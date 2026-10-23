@@ -17,6 +17,16 @@ public struct Config: Equatable, Sendable {
     public var projects: [ProjectDef] = []
     /// Mode name → key combo → command script.
     public var modes: [String: [KeyCombo: String]] = ["main": [:]]
+    /// Mode name → key combo → label shown in the key hints instead of the script.
+    public var bindingLabels: [String: [KeyCombo: String]] = [:]
+    /// Mode name → label of the group, shown as `+label` for keys that enter the mode.
+    public var modeLabels: [String: String] = [:]
+    /// Modes that stay active after a key; any other mode but `main` returns to `main` after one key.
+    public var stickyModes: Set<String> = []
+    /// Popup listing the next keys when a mode other than `main` waits for a key, like which-key.
+    public var keyHints = true
+    /// Seconds without a key press before the hints appear.
+    public var keyHintsDelay: Double = 0.2
 
     public init() {}
 

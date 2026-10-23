@@ -422,4 +422,40 @@ struct TargetWindowTests {
         h.engine.refresh()
         #expect(h.engine.windowList().map(\.record.workspace) == ["s", "w"])
     }
+
+    @Test func submenusAreOneShotWithBreadcrumbsAndBuiltInKeys() {
+        var config = Config.sample
+        config.modes["control"] = ["m": "mode move", "minus": "resize -50; mode resize", "w": "workspace w"]
+            .reduce(into: [:]) { $0[KeyCombo(parsing: $1.key)!] = $1.value }
+        config.modes["move"] = [KeyCombo(parsing: "w")!: "move-to-workspace w"]
+        config.modes["resize"] = [KeyCombo(parsing: "minus")!: "resize -50"]
+        config.stickyModes = ["resize"]
+        config.modeLabels = ["control": "Foci", "move": "Move"]
+        let h = Harness(config: config)
+        h.engine.refresh()
+        func press(_ key: String) { h.engine.press(h.engine.bindings[KeyCombo(parsing: key)!]!) }
+
+        h.engine.run("mode control")
+        press("w")
+        #expect(h.engine.focusedWorkspace == "w")
+        #expect(h.engine.mode == "main")
+
+        h.engine.run("mode control")
+        press("m")
+        #expect(h.engine.mode == "move")
+        #expect(h.engine.modeTitle == "Foci › Move")
+        #expect(h.engine.keyHints.contains(KeyHint(combo: KeyCombo(parsing: "backspace")!, label: "back", isGroup: false)))
+        press("backspace")
+        #expect(h.engine.modePath == ["control"])
+        press("esc")
+        #expect(h.engine.mode == "main")
+
+        h.engine.run("mode control")
+        press("minus")
+        press("minus")
+        #expect(h.engine.mode == "resize")
+        press("backspace")
+        #expect(h.engine.mode == "control")
+        #expect(h.engine.bindings[KeyCombo(parsing: "backspace")!] == "mode main")
+    }
 }

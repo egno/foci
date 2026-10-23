@@ -59,4 +59,25 @@ struct ParsingTests {
         c.projects[1].apps.append(ProjectAppRef(app: "nope"))
         #expect(c.validate().count == 2)
     }
+
+    @Test func keyHintsSortKeysBeforeGroupsAndDropModeMain() {
+        var c = Config()
+        func k(_ s: String) -> KeyCombo { KeyCombo(parsing: s)! }
+        c.modes["control"] = [
+            k("slash"): "mode project", k("shift-w"): "move-to-workspace w; mode main", k("w"): "workspace w; mode main",
+            k("esc"): "mode main", k("minus"): "resize -50; mode project", k("a"): "workspace a; mode main",
+        ]
+        c.modes["project"] = [:]
+        c.modeLabels["project"] = "Link window"
+        c.bindingLabels["control"] = [k("a"): "apps"]
+        #expect(c.keyHints(for: "control") == [
+            KeyHint(combo: k("a"), label: "apps", isGroup: false),
+            KeyHint(combo: k("w"), label: "workspace w", isGroup: false),
+            KeyHint(combo: k("shift-w"), label: "move-to-workspace w", isGroup: false),
+            KeyHint(combo: k("esc"), label: "close", isGroup: false),
+            KeyHint(combo: k("minus"), label: "resize -50 +Link window", isGroup: false),
+            KeyHint(combo: k("slash"), label: "Link window", isGroup: true),
+        ])
+        #expect(c.keyHints(for: "nope") == [])
+    }
 }

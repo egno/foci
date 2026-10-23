@@ -10,6 +10,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     private let windowSystem = AXWindowSystem()
     private let hotkeys = Hotkeys()
     private let menu = StatusMenu()
+    private let keyHints = KeyHintPanel()
     private var engine: Engine?
     private var refreshScheduled = false
     private var timer: Timer?
@@ -72,13 +73,20 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         self.engine = engine
         menu.engine = engine
 
-        engine.onBindingsChange = { [weak self] in self?.bindHotkeys() }
+        engine.onBindingsChange = { [weak self] in
+            self?.bindHotkeys()
+            self?.updateKeyHints()
+        }
         engine.onChange = { [weak self] in
             self?.updateMenu()
             self?.cliServer.publish(CLIHandler(engine: engine).status())
         }
         engine.onLog = { [log] in log.info("\($0, privacy: .public)") }
-        hotkeys.onHotkey = { [weak self] script in self?.run(script) }
+        hotkeys.onHotkey = { [weak self] script in
+            self?.run(script, pressed: true)
+            // A key that stays in the mode (resize) restarts the wait; a mode change already updated the hints.
+            if self?.keyHints.isVisible == false { self?.updateKeyHints() }
+        }
         menu.onCommand = { [weak self] script, window in self?.run(script, window: window) }
         windowSystem.onEvent = { [weak self] in self?.scheduleRefresh() }
 
@@ -129,11 +137,12 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func run(_ script: String, window: WindowID? = nil) {
+    /// `pressed`: a key of the current mode, see `Engine.press`.
+    private func run(_ script: String, window: WindowID? = nil, pressed: Bool = false) {
         guard let engine else { return }
         log.info("run: \(script, privacy: .public)\(window.map { " on \($0)" } ?? "", privacy: .public)")
         if script.contains("reload-config") { configDate = configSource.modificationDate }
-        let errors = engine.run(script, window: window)
+        let errors = pressed ? engine.press(script) : engine.run(script, window: window)
         for e in errors { log.error("\(script, privacy: .public): \(e, privacy: .public)") }
         if script.contains("reload-config") {
             configProblems = errors + [LoginItem.apply(engine.config.startAtLogin)].compactMap { $0 }
@@ -143,9 +152,22 @@ public final class FociApp: NSObject, NSApplicationDelegate {
 
     private func bindHotkeys() {
         guard let engine else { return }
-        hotkeyProblems = hotkeys.register(engine.config.modes[engine.mode] ?? [:])
+        hotkeyProblems = hotkeys.register(engine.bindings)
         for e in hotkeyProblems { log.error("\(e, privacy: .public)") }
         updateMenu()
+    }
+
+    /// which-key: in any mode but `main`, list the mode's keys once no key was pressed for `key-hints-delay`.
+    /// Moving to another mode while the hints are up shows its keys at once.
+    private func updateKeyHints() {
+        guard let engine, engine.config.keyHints, engine.mode != "main" else { return keyHints.hide() }
+        let display = engine.display(of: engine.focusedWorkspace).id.raw
+        let screen = NSScreen.screens.first {
+            ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == display
+        }
+        keyHints.show(
+            title: engine.modeTitle, hints: engine.keyHints, on: screen,
+            after: keyHints.isVisible ? 0 : engine.config.keyHintsDelay)
     }
 
     private func updateMenu() {

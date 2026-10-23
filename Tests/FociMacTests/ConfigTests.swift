@@ -63,5 +63,35 @@ struct ConfigTests {
         let c = try TOMLConfigSource.parse("browser = 'ff'\n[apps.ff]\nopen-url = 'open -a Firefox {url}'")
         #expect(c.validate() == ["browser: app 'ff' has no global-open-url command"])
         #expect(try TOMLConfigSource.parse("browser = 'ff'").validate() == ["browser: unknown app 'ff'"])
-    }}
+    }
+
+    @Test func keyHintOptionsAndLabels() throws {
+        let c = try TOMLConfigSource.parse(
+            """
+            key-hints-delay = 500
+            [mode.main.binding]
+            f20 = 'mode control'
+            [mode.control]
+            label = 'Foci'
+            [mode.control.binding]
+            w = { run = 'workspace w; mode main', label = 'web' }
+            b = { run = ['balance', 'mode main'] }
+            """)
+        #expect(c.keyHints)
+        #expect(c.keyHintsDelay == 0.5)
+        #expect(c.modeLabels == ["control": "Foci"])
+        #expect(c.modes["control"]?[KeyCombo(modifiers: [], key: "b")] == "balance; mode main")
+        #expect(c.bindingLabels["control"] == [KeyCombo(modifiers: [], key: "w"): "web"])
+        #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("[mode.main.binding]\nx = { label = 'a' }") }
+        #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("[mode.main]\nlabel = 1") }
+        #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("key-hints-delay = -1") }
+        #expect(try TOMLConfigSource.parse("key-hints = false").keyHints == false)
+    }
+
+    @Test func keyLabelsUseMacSymbols() {
+        #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "shift-ctrl-a")!) == "⌃⇧A")
+        #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "minus")!) == "-")
+        #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "alt-left")!) == "⌥←")
+        #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "f20")!) == "F20")
+    }
 }

@@ -44,9 +44,16 @@ public final class TOMLConfigSource: ConfigSource {
         var c = Config()
         try checkKeys(
             root,
-            ["start-at-login", "gap", "default-layout", "workspaces", "apps", "browser", "projects", "mode"],
+            ["start-at-login", "gap", "default-layout", "workspaces", "apps", "browser", "projects", "mode",
+             "key-hints", "key-hints-delay"],
             at: "top level")
         if let v = root["start-at-login"] { c.startAtLogin = try bool(v, "start-at-login") }
+        if let v = root["key-hints"] { c.keyHints = try bool(v, "key-hints") }
+        if let v = root["key-hints-delay"] {
+            let ms = try number(v, "key-hints-delay")
+            guard ms >= 0 else { throw ConfigError("key-hints-delay: expected milliseconds >= 0") }
+            c.keyHintsDelay = ms / 1000
+        }
 
         if let b = root["browser"] { c.browser = try string(b, "browser") }
         if let gap = root["gap"] { c.gap = try number(gap, "gap") }
@@ -93,31 +100,43 @@ public final class TOMLConfigSource: ConfigSource {
             let t = try table(modes, "mode")
             for name in t.keys {
                 let mt = try table(t[name]!, "mode.\(name)")
-                try checkKeys(mt, ["binding"], at: "mode.\(name)")
+                try checkKeys(mt, ["binding", "label", "sticky"], at: "mode.\(name)")
+                if let s = mt["sticky"], try bool(s, "mode.\(name).sticky") { c.stickyModes.insert(name) }
+                if let l = mt["label"] { c.modeLabels[name] = try string(l, "mode.\(name).label") }
                 var bindings: [KeyCombo: String] = [:]
+                var labels: [KeyCombo: String] = [:]
                 if let b = mt["binding"] {
                     let bt = try table(b, "mode.\(name).binding")
                     for key in bt.keys {
                         guard let combo = KeyCombo(parsing: key) else {
                             throw ConfigError("mode.\(name).binding: bad key '\(key)'")
                         }
-                        let v = bt[key]!
+                        let at = "mode.\(name).binding.\(key)"
+                        var v = bt[key]!
+                        if let t = v.table {
+                            // Long form: { run = '...', label = '...' }
+                            try checkKeys(t, ["run", "label"], at: at)
+                            guard let run = t["run"] else { throw ConfigError("\(at): missing 'run'") }
+                            if let l = t["label"] { labels[combo] = try string(l, "\(at).label") }
+                            v = run
+                        }
                         let script: String
                         if let s = v.string {
                             script = s
                         } else if let a = v.array {
                             script = try a.map { try string($0, key) }.joined(separator: "; ")
                         } else {
-                            throw ConfigError("mode.\(name).binding.\(key): expected a string or an array of strings")
+                            throw ConfigError("\(at): expected a string, an array of strings or { run, label }")
                         }
                         // Fail on load, not on key press.
                         do { _ = try Command.parseScript(script) } catch {
-                            throw ConfigError("mode.\(name).binding.\(key): \(error)")
+                            throw ConfigError("\(at): \(error)")
                         }
                         bindings[combo] = script
                     }
                 }
                 c.modes[name] = bindings
+                if !labels.isEmpty { c.bindingLabels[name] = labels }
             }
         }
         if c.modes["main"] == nil { c.modes["main"] = [:] }

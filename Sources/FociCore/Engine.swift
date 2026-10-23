@@ -9,6 +9,8 @@ public final class Engine {
     public private(set) var config: Config
     public private(set) var state: State
     public private(set) var mode = "main"
+    /// Submenus entered since leaving `main`, outermost first; the last one is `mode`.
+    public private(set) var modePath: [String] = []
     public private(set) var displays: [Display] = []
     public private(set) var facts: [WindowID: WindowFacts] = [:]
 
@@ -235,6 +237,53 @@ public final class Engine {
         rememberFocus(f)
     }
 
+    // MARK: - Key bindings
+
+    static let esc = KeyCombo(modifiers: [], key: "esc")
+    static let backspace = KeyCombo(modifiers: [], key: "backspace")
+
+    /// Keys of the current mode. Every submenu also has `esc` (close) and `backspace` (up one level) unless
+    /// the config binds them.
+    public var bindings: [KeyCombo: String] {
+        var b = config.modes[mode] ?? [:]
+        guard mode != "main" else { return b }
+        if b[Self.esc] == nil { b[Self.esc] = "mode main" }
+        if b[Self.backspace] == nil { b[Self.backspace] = "mode \(modePath.dropLast().last ?? "main")" }
+        return b
+    }
+
+    public var keyHints: [KeyHint] {
+        let hints = config.keyHints(for: mode, bindings: bindings)
+        guard mode != "main", config.modes[mode]?[Self.backspace] == nil else { return hints }
+        // Going back is not a group.
+        return hints.map { $0.combo == Self.backspace ? KeyHint(combo: $0.combo, label: "back", isGroup: false) : $0 }
+    }
+
+    /// `Foci › Move`: labels of the submenus entered from `main`.
+    public var modeTitle: String { modePath.map { config.modeLabels[$0] ?? $0 }.joined(separator: " › ") }
+
+    /// Runs the script bound to a key of the current mode. A key that leaves the mode as it was returns to
+    /// `main`, unless the mode is sticky: one key per submenu, like which-key.
+    @discardableResult
+    public func press(_ script: String) -> [String] {
+        let before = mode
+        let errors = run(script)
+        if mode == before, mode != "main", !config.stickyModes.contains(mode) { setMode("main") }
+        return errors
+    }
+
+    private func setMode(_ m: String) {
+        if m == "main" {
+            modePath = []
+        } else if let i = modePath.firstIndex(of: m) {
+            modePath.removeSubrange((i + 1)...)
+        } else {
+            modePath.append(m)
+        }
+        mode = m
+        onBindingsChange?()
+    }
+
     // MARK: - Commands
 
     /// Runs a command script such as `workspace w; mode main`. Returns error messages.
@@ -439,13 +488,12 @@ public final class Engine {
 
         case .mode(let m):
             guard config.modes[m] != nil else { return "unknown mode '\(m)'" }
-            mode = m
-            onBindingsChange?()
+            setMode(m)
 
         case .reloadConfig:
             do {
                 config = try configSource.load()
-                if config.modes[mode] == nil { mode = "main" }
+                if config.modes[mode] == nil { mode = "main"; modePath = [] }
                 dropUnknownProjects()
                 normalizeWorkspaces()
                 onBindingsChange?()

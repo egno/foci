@@ -18,6 +18,12 @@ enum DefaultConfig {
         # of the focused workspace for the active project only; Foci remembers it.
         default-layout = 'maximized'
 
+        # Key hints, like which-key in AstroNvim: in any mode but 'main' (after the leader key), a popup lists
+        # the next keys when no key is pressed for 'key-hints-delay' milliseconds. Keys that only switch to
+        # another mode are groups, shown as '+label' of that mode.
+        key-hints = true
+        key-hints-delay = 200
+
         # URL router: make Foci the default browser (System Settings > Desktop & Dock > Default web browser) and
         # links open in the browser of the project they were clicked in: the project's first app with 'open-url'.
         # A link from an unlinked window (Slack) goes to the active project. 'browser' opens links when that
@@ -155,95 +161,156 @@ enum DefaultConfig {
         #   link <project>|--active    unlink  float (toggle)
         #   launch <app>       focus the active project's window of the app, or launch it
         #   mode <name>    reload-config    exec <shell command>
+        #
+        # A binding is a script, an array of commands, or { run = <script or array>, label = 'shown in key hints' }.
+        #
+        # Modes other than 'main' are submenus, like the leader key in AstroNvim: one key acts, then Foci returns to
+        # 'main', unless the key enters another mode or the mode is 'sticky = true'. In every submenu 'esc' closes
+        # and 'backspace' goes up one level, unless bound. [mode.<name>] label = '...' names the submenu in key hints.
 
+        # Global hotkeys need a modifier or an F-key; everything after the leader is a single plain key.
         [mode.main.binding]
         f20 = 'mode control'
         ctrl-esc = 'mode control'
 
-        # Leader mode: one key acts, then back to main.
+        [mode.control]
+        label = 'Foci'
+
         [mode.control.binding]
-        esc = 'mode main'
+        space = 'mode project'
+        w = 'mode workspace'
+        backtick = 'project-back-and-forth'
 
-        1 = 'project p; mode main'
-        2 = 'project bil; mode main'
-        3 = 'project iam; mode main'
-        4 = 'project gc; mode main'
-        0 = 'project --none; mode main'
-        backtick = 'project-back-and-forth; mode main'
-        slash = 'mode project'
+        enter = 'workspace-back-and-forth'
+        f20 = 'workspace-back-and-forth'
+        tab = 'focus-display next'
 
-        # Window order is one row (tiles side by side) or one column (stacked/maximized):
-        # left/up = previous, right/down = next.
-        left = 'focus prev; mode main'
-        up = 'focus prev; mode main'
-        right = 'focus next; mode main'
-        down = 'focus next; mode main'
-        space = 'focus next; mode main'
-        shift-left = 'move prev; mode main'
-        shift-up = 'move prev; mode main'
-        shift-right = 'move next; mode main'
-        shift-down = 'move next; mode main'
-        z = 'float; mode main'
-        e = 'layout toggle; mode main'
-        shift-e = 'layout toggle-orientation; mode main'
-        b = 'balance; mode main'
-        # Stay in control mode to repeat: minus minus minus esc
+        # Window order is one row (tiles side by side) or one column (stacked/maximized).
+        j = 'focus next'
+        k = 'focus prev'
+        right = 'focus next'
+        down = 'focus next'
+        left = 'focus prev'
+        up = 'focus prev'
+        minus = 'resize -50; mode resize'
+        equal = 'resize +50; mode resize'
+
+        m = 'mode move'
+        g = 'mode go'
+        e = 'mode layout'
+        l = 'mode link'
+        semicolon = 'mode foci'
+
+        # Projects by first letter; space space toggles the last two.
+        [mode.project]
+        label = 'Project'
+
+        [mode.project.binding]
+        p = 'project p'
+        b = 'project bil'
+        i = 'project iam'
+        g = 'project gc'
+        n = { run = 'project --none', label = 'no project' }
+        space = 'project-back-and-forth'
+
+        # Workspaces by name; space toggles the last two.
+        [mode.workspace]
+        label = 'Workspace'
+
+        [mode.workspace.binding]
+        a = 'workspace a'
+        c = 'workspace c'
+        d = 'workspace d'
+        f = 'workspace f'
+        o = 'workspace o'
+        p = 'workspace p'
+        r = 'workspace r'
+        s = 'workspace s'
+        t = 'workspace t'
+        v = 'workspace v'
+        w = 'workspace w'
+        x = 'workspace x'
+        space = 'workspace-back-and-forth'
+
+        [mode.move]
+        label = 'Move'
+
+        [mode.move.binding]
+        a = 'move-to-workspace a'
+        c = 'move-to-workspace c'
+        d = 'move-to-workspace d'
+        f = 'move-to-workspace f'
+        o = 'move-to-workspace o'
+        p = 'move-to-workspace p'
+        r = 'move-to-workspace r'
+        s = 'move-to-workspace s'
+        t = 'move-to-workspace t'
+        v = 'move-to-workspace v'
+        w = 'move-to-workspace w'
+        x = 'move-to-workspace x'
+        j = 'move next'
+        k = 'move prev'
+        right = 'move next'
+        down = 'move next'
+        left = 'move prev'
+        up = 'move prev'
+        tab = { run = 'move-workspace-to-display next', label = 'workspace to next display' }
+
+        [mode.go]
+        label = 'Go with window'
+
+        [mode.go.binding]
+        a = 'move-to-workspace --follow a'
+        c = 'move-to-workspace --follow c'
+        d = 'move-to-workspace --follow d'
+        f = 'move-to-workspace --follow f'
+        o = 'move-to-workspace --follow o'
+        p = 'move-to-workspace --follow p'
+        r = 'move-to-workspace --follow r'
+        s = 'move-to-workspace --follow s'
+        t = 'move-to-workspace --follow t'
+        v = 'move-to-workspace --follow v'
+        w = 'move-to-workspace --follow w'
+        x = 'move-to-workspace --follow x'
+
+        [mode.layout]
+        label = 'Layout'
+
+        [mode.layout.binding]
+        e = 'layout toggle'
+        t = 'layout tiles'
+        m = 'layout maximized'
+        o = 'layout toggle-orientation'
+        b = 'balance'
+        f = 'float'
+
+        # Sticky: repeat - and =, leave with esc.
+        [mode.resize]
+        label = 'Resize'
+        sticky = true
+
+        [mode.resize.binding]
         minus = 'resize -50'
         equal = 'resize +50'
-
-        m = 'focus-display next; mode main'
-        tab = 'move-workspace-to-display next; mode main'
-        f20 = 'workspace-back-and-forth; mode main'
-
-        a = 'workspace a; mode main'
-        c = 'workspace c; mode main'
-        d = 'workspace d; mode main'
-        f = 'workspace f; mode main'
-        o = 'workspace o; mode main'
-        p = 'workspace p; mode main'
-        r = 'workspace r; mode main'
-        s = 'workspace s; mode main'
-        t = 'workspace t; mode main'
-        v = 'workspace v; mode main'
-        w = 'workspace w; mode main'
-        x = 'workspace x; mode main'
-
-        shift-a = 'move-to-workspace a; mode main'
-        shift-c = 'move-to-workspace c; mode main'
-        shift-d = 'move-to-workspace d; mode main'
-        shift-f = 'move-to-workspace f; mode main'
-        shift-o = 'move-to-workspace o; mode main'
-        shift-p = 'move-to-workspace p; mode main'
-        shift-r = 'move-to-workspace r; mode main'
-        shift-s = 'move-to-workspace s; mode main'
-        shift-t = 'move-to-workspace t; mode main'
-        shift-v = 'move-to-workspace v; mode main'
-        shift-w = 'move-to-workspace w; mode main'
-        shift-x = 'move-to-workspace x; mode main'
-
-        ctrl-a = 'move-to-workspace --follow a; mode main'
-        ctrl-c = 'move-to-workspace --follow c; mode main'
-        ctrl-d = 'move-to-workspace --follow d; mode main'
-        ctrl-f = 'move-to-workspace --follow f; mode main'
-        ctrl-o = 'move-to-workspace --follow o; mode main'
-        ctrl-p = 'move-to-workspace --follow p; mode main'
-        ctrl-r = 'move-to-workspace --follow r; mode main'
-        ctrl-s = 'move-to-workspace --follow s; mode main'
-        ctrl-t = 'move-to-workspace --follow t; mode main'
-        ctrl-v = 'move-to-workspace --follow v; mode main'
-        ctrl-w = 'move-to-workspace --follow w; mode main'
-        ctrl-x = 'move-to-workspace --follow x; mode main'
-
-        shift-semicolon = 'reload-config; mode main'
+        b = 'balance'
 
         # Link the focused window by hand.
-        [mode.project.binding]
-        esc = 'mode main'
-        1 = 'link p; mode main'
-        2 = 'link bil; mode main'
-        3 = 'link iam; mode main'
-        4 = 'link gc; mode main'
-        0 = 'unlink; mode main'
-        l = 'link --active; mode main'
+        [mode.link]
+        label = 'Link window'
+
+        [mode.link.binding]
+        p = 'link p'
+        b = 'link bil'
+        i = 'link iam'
+        g = 'link gc'
+        l = { run = 'link --active', label = 'link to the active project' }
+        u = 'unlink'
+
+        [mode.foci]
+        label = 'Config'
+
+        [mode.foci.binding]
+        r = 'reload-config'
+        e = { run = 'exec open -t ~/.config/foci/config.toml', label = 'edit config' }
         """#
 }
