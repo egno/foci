@@ -185,8 +185,8 @@ enum DefaultConfig {
         label = 'Foci'
 
         [mode.control.binding]
-        space = 'mode project'
-        w = 'mode workspace'
+        space = 'mode workspace'
+        p = 'mode project'
         backtick = 'project-back-and-forth'
 
         enter = 'workspace-back-and-forth'

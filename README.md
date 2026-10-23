@@ -19,7 +19,7 @@ A small macOS window manager for working on one project at a time, keyboard firs
   link, or the nearest parent process with windows (a terminal running `open`, `gh --web`). Links from unlinked
   windows go to the active project. Outside any project, `browser` opens them in an unlinked window.
 - **Leader key and submenus**, like AstroNvim. The leader (`f20` / `ctrl-esc`) opens a menu of single
-  plain keys: focus, and submenus `w` workspace, `space` project, `m` move, `g` go with window, `e` layout, `l` link,
+  plain keys: focus, and submenus `space` workspace, `p` project, `m` move, `g` go with window, `e` layout, `l` link,
   `;` config. Modes other than `main` are one-shot: a key acts and Foci returns to `main`, unless the key
   enters another mode or the mode is `sticky = true` (resize). In every submenu `esc` closes and
   `backspace` goes up one level.
