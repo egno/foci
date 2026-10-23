@@ -95,4 +95,21 @@ struct ParsingTests {
         c.modes["control"]![k("f20")] = "focus next"
         #expect(c.keyHints(for: "control").map(\.combo) == [k("f20"), k("right-cmd")])
     }
+
+    @Test func keyHintsShowKeysThatDoTheSameWithTheirKeyAsOneRange() {
+        var c = Config()
+        func k(_ s: String) -> KeyCombo { KeyCombo(parsing: s)! }
+        var b: [KeyCombo: String] = [:]
+        for l in "abcdfgh" { b[k(String(l))] = "workspace \(l)" }
+        b[k("e")] = "layout toggle"
+        b[k("x")] = "workspace x"
+        b[k("shift-x")] = "move-to-workspace x"
+        c.modes["control"] = b
+        #expect(c.keyHints(for: "control") == [
+            KeyHint(combo: k("a"), label: "workspace", isGroup: false, range: "a-d f-h x"),
+            KeyHint(combo: k("e"), label: "layout toggle", isGroup: false),
+            KeyHint(combo: k("shift-x"), label: "move-to-workspace x", isGroup: false),
+        ])
+        #expect(Config.ranges(["a", "b", "d", "e", "f"]) == "a b d-f")
+    }
 }

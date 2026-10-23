@@ -31,7 +31,7 @@ A small macOS window manager for working on one project at a time, keyboard firs
   goes to the app.
 - **Key hints**, like which-key: if no key is pressed for `key-hints-delay` ms (300), a popup at the bottom
   of the focused display lists the next keys, titled with the path (`Foci › Move`). Submenus show as
-  `+label`. Name things with `[mode.<name>] label = '...'` and `key = { run = '...', label = '...' }`.
+  `+label`. Keys that do the same with their own key show as one row: `a-z → workspace`. Name things with `[mode.<name>] label = '...'` and `key = { run = '...', label = '...' }`.
 - **Menu bar**, like AeroSpace's experimental UI: the project, the workspace shown on each display as a
   lettered square (focused one filled), hidden workspaces with windows dimmed, and the mode while in a
   submenu. `menu-bar-style = 'i3' | 'squares' | 'text'`.

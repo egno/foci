@@ -110,6 +110,7 @@ struct ConfigTests {
         }
         #expect(KeyHintPanel.keyLabel(.leader) == "Leader")
         #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "shift-backslash")!) == "|")
+        #expect(KeyHintPanel.keyLabel(KeyHint(combo: KeyCombo(parsing: "a")!, label: "workspace", isGroup: false, range: "a-z")) == "a-z")
         #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "shift-w")!) == "⇧W")
     }
 

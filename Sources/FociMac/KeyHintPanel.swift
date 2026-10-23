@@ -52,11 +52,20 @@ final class KeyHintPanel {
 
     /// `⌃⇧A`, `←`, `Space`: the combo as macOS menus write it.
     /// A shifted symbol key shows as its symbol: `shift-backslash` is `|` (one key on some keyboards).
+    /// A range of keys stays lowercase: `a-z`.
+    static func keyLabel(_ hint: KeyHint) -> String {
+        guard let range = hint.range else { return keyLabel(hint.combo) }
+        return modifierSymbols(hint.combo) + range
+    }
+
     static func keyLabel(_ combo: KeyCombo) -> String {
         if combo.modifiers == [.shift], let symbol = shiftedNames[combo.key] { return symbol }
+        return modifierSymbols(combo) + (keyNames[combo.key] ?? combo.key.uppercased())
+    }
+
+    private static func modifierSymbols(_ combo: KeyCombo) -> String {
         let symbols: [Modifier: String] = [.ctrl: "⌃", .alt: "⌥", .shift: "⇧", .cmd: "⌘"]
-        let mods = [Modifier.ctrl, .alt, .shift, .cmd].filter(combo.modifiers.contains).compactMap { symbols[$0] }
-        return mods.joined() + (keyNames[combo.key] ?? combo.key.uppercased())
+        return [Modifier.ctrl, .alt, .shift, .cmd].filter(combo.modifiers.contains).compactMap { symbols[$0] }.joined()
     }
 
     private static let shiftedNames: [String: String] = [
@@ -87,7 +96,7 @@ private struct KeyHintView: View {
     private static let padding: CGFloat = 14
 
     var body: some View {
-        let keyWidth = Self.textWidth(hints.map { KeyHintPanel.keyLabel($0.combo) }.max { $0.count < $1.count } ?? "")
+        let keyWidth = Self.textWidth(hints.map { KeyHintPanel.keyLabel($0) }.max { $0.count < $1.count } ?? "")
         let labelWidth = min(Self.maxLabelWidth, Self.textWidth(hints.map { "+" + $0.label }.max { $0.count < $1.count } ?? ""))
         let columns = Self.columns(hints, columnWidth: keyWidth + 6 + Self.textWidth("→") + 6 + labelWidth, maxWidth: maxWidth)
         VStack(alignment: .leading, spacing: 8) {
@@ -109,7 +118,7 @@ private struct KeyHintView: View {
 
     private func row(_ hint: KeyHint, keyWidth: CGFloat, labelWidth: CGFloat) -> some View {
         HStack(spacing: 6) {
-            Text(KeyHintPanel.keyLabel(hint.combo))
+            Text(KeyHintPanel.keyLabel(hint))
                 .foregroundStyle(Color.accentColor)
                 .frame(width: keyWidth, alignment: .trailing)
             Text("→").foregroundStyle(.tertiary)
