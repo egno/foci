@@ -2,7 +2,7 @@ import FociCore
 import Foundation
 import os
 
-/// Persists `State` to `~/Library/Application Support/Foci/state.json`.
+/// Persists `State` to `~/Library/Application Support/Foci/state.json` (`$FOCI_HOME/state.json` when set).
 @MainActor
 public final class JSONStateStore: StateStore {
     private let url: URL
@@ -10,9 +10,7 @@ public final class JSONStateStore: StateStore {
 
     public init(url: URL = JSONStateStore.defaultURL) { self.url = url }
 
-    public static var defaultURL: URL {
-        URL.applicationSupportDirectory.appending(path: "Foci/state.json")
-    }
+    public static var defaultURL: URL { FociPaths.support().appending(path: "state.json") }
 
     public func load() -> State? {
         guard let data = try? Data(contentsOf: url) else { return nil }

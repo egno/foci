@@ -8,7 +8,7 @@ if !cliArgs.isEmpty {
 }
 
 // One instance only: two would fight over the same windows.
-let lockPath = URL.applicationSupportDirectory.appending(path: "Foci/foci.lock").path
+let lockPath = FociPaths.support().appending(path: "foci.lock").path
 try? FileManager.default.createDirectory(
     atPath: (lockPath as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
 let lockFD = open(lockPath, O_CREAT | O_RDWR, 0o600)

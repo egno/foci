@@ -7,10 +7,10 @@ import os
 enum LoginItem {
     private static let log = Logger(subsystem: "dev.foci", category: "app")
 
-    /// Returns a problem to show in the menu, if any.
+    /// Returns a problem to show in the menu, if any. A test instance (`FOCI_HOME`) never registers.
     static func apply(_ enabled: Bool) -> String? {
         // Only an app bundle can be a login item; `swift run` runs the bare binary.
-        guard Bundle.main.bundleIdentifier != nil else { return nil }
+        guard Bundle.main.bundleIdentifier != nil, !FociPaths.isOverridden else { return nil }
         let service = SMAppService.mainApp
         do {
             switch (enabled, service.status) {

@@ -7,16 +7,14 @@ public struct ConfigError: Error, Equatable, CustomStringConvertible {
     init(_ d: String) { description = d }
 }
 
-/// Reads `~/.config/foci/config.toml`. Unknown keys are errors, so typos don't silently do nothing.
+/// Reads `~/.config/foci/config.toml` (`$FOCI_HOME/config.toml` when set, see `FociPaths`). Unknown keys are errors, so typos don't silently do nothing.
 @MainActor
 public final class TOMLConfigSource: ConfigSource {
     public let url: URL
 
     public init(url: URL = TOMLConfigSource.defaultURL) { self.url = url }
 
-    public static var defaultURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appending(path: ".config/foci/config.toml")
-    }
+    public static var defaultURL: URL { FociPaths.config() }
 
     public var modificationDate: Date? {
         (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date

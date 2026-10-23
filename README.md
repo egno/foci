@@ -83,6 +83,7 @@ To route links, pick Foci in System Settings → Desktop & Dock → Default web 
 On first start Foci asks for the Accessibility permission and writes an example config to
 `~/.config/foci/config.toml`. The config is reloaded on save; problems appear in the menu bar menu (⚠).
 State (links, active project and workspaces) is kept in `~/Library/Application Support/Foci/state.json`.
+For tests, `FOCI_HOME=<dir>` moves the config (`config.toml`), the state and the CLI socket into `<dir>`.
 
 Don't run Foci and another tiling window manager (AeroSpace, yabai) at the same time.
 
@@ -114,8 +115,8 @@ Exit codes: 0 ok, 1 command failed, 2 usage error, 3 app not running.
 | `foci` | Executable: single-instance lock, starts `FociApp`. |
 
 Core tests run the engine against in-memory fakes (`Tests/FociCoreTests/Fakes.swift`); `Tests/FociMacTests` checks
-the TOML config. `Tests/E2E/SCENARIOS.md` describes end-to-end scenarios against the installed app and real windows
-(manual for now).
+the TOML config. `Tests/E2E` holds end-to-end scenarios against real windows (`SCENARIOS.md` is the spec, `make e2e`
+runs them with a fixture app and its own `FOCI_HOME`; it stops your Foci meanwhile).
 
 ## Roadmap
 

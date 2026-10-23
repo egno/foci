@@ -1,7 +1,7 @@
 APP := build/Foci.app
 INSTALL_DIR := $(HOME)/Applications
 
-.PHONY: build test app install run log clean
+.PHONY: build test app install run log clean e2e
 
 build:
 	swift build
@@ -28,5 +28,10 @@ run: build
 log:
 	log stream --level info --predicate 'subsystem == "dev.foci"'
 
+# End-to-end tests against real windows, see Tests/E2E/SCENARIOS.md. Stops your Foci meanwhile and starts it again.
+# make e2e E2E_ARGS='-k A'
+e2e:
+	python3 Tests/E2E/e2e.py $(E2E_ARGS)
+
 clean:
-	rm -rf .build build
+	rm -rf .build build Tests/E2E/Probe/.build

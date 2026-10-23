@@ -7,7 +7,7 @@ import os
 /// `CLIResponse` JSON line and closes. For `subscribe` the server keeps the connection and writes one
 /// `StatusDTO` JSON line per change.
 public enum CLISocket {
-    public static var path: String { URL.applicationSupportDirectory.appending(path: "Foci/foci.sock").path }
+    public static var path: String { FociPaths.support().appending(path: "foci.sock").path }
 
     static func address(_ path: String) -> sockaddr_un? {
         var addr = sockaddr_un()

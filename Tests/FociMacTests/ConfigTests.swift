@@ -210,3 +210,20 @@ struct ConfigTests {
         #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "f20")!) == "F20")
     }
 }
+
+struct PathTests {
+    @Test func fociHomeMovesEveryFile() {
+        let env = ["FOCI_HOME": "/tmp/foci-test"]
+        #expect(FociPaths.config(env).path == "/tmp/foci-test/config.toml")
+        #expect(FociPaths.support(env).appending(path: "state.json").path == "/tmp/foci-test/state.json")
+        #expect(FociPaths.support(env).appending(path: "foci.sock").path == "/tmp/foci-test/foci.sock")
+    }
+
+    @Test func defaultsWithoutFociHome() {
+        for env in [[:], ["FOCI_HOME": ""]] {
+            #expect(FociPaths.home(env) == nil)
+            #expect(FociPaths.config(env).path.hasSuffix("/.config/foci/config.toml"))
+            #expect(FociPaths.support(env).path.hasSuffix("/Application Support/Foci"))
+        }
+    }
+}
