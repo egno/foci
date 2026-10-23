@@ -17,6 +17,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     override init() {
         super.init()
+        // macOS remembers where the item was ⌘-dragged. When the menu bar is full (a laptop display alone),
+        // it hides status items from the left, and new items start leftmost.
+        item.autosaveName = "dev.foci.status"
         item.button?.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
         item.button?.title = "Foci"
         menu.delegate = self
