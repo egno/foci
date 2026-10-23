@@ -39,6 +39,8 @@ public final class Engine {
     private var target: WindowID?
     /// Last focused window reported by the OS; a change means the user focused something.
     private var lastSeenFocus: WindowID?
+    /// Displays seen by the last sync, to log changes.
+    private var knownDisplays: Set<DisplayID> = []
     /// The focus found at startup is not a user action: it may be a stale focus on a parked window.
     private var hasSeenFocus = false
 
@@ -190,13 +192,27 @@ public final class Engine {
     }
 
     /// Every display shows exactly one workspace; the focused workspace is one of them.
+    ///
+    /// Displays come and go: the workspaces of a disconnected display live on the main display meanwhile, and
+    /// the focused one moves there with its windows. A reconnected display shows what it showed before.
     private func normalizeWorkspaces() {
-        for (d, ws) in state.activeWorkspace
-        where !displays.contains(where: { $0.id == d }) || display(of: ws).id != d {
+        let present = Set(displays.map(\.id))
+        if present != knownDisplays {
+            if !knownDisplays.isEmpty { onLog?("displays: " + displays.map(\.name).joined(separator: ", ")) }
+            knownDisplays = present
+        }
+        rememberShownWorkspaces()  // as last laid out, before a gone display's entry is dropped
+        let focusedDisplay = state.activeWorkspace.first { $0.value == state.focusedWorkspace }?.key
+        for (d, ws) in state.activeWorkspace where !present.contains(d) || display(of: ws).id != d {
             state.activeWorkspace[d] = nil
         }
+        if let ws = state.focusedWorkspace, let d = focusedDisplay, !present.contains(d) {
+            state.activeWorkspace[display(of: ws).id] = ws
+        }
         for (i, d) in displays.enumerated() where state.activeWorkspace[d.id] == nil {
-            if let ws = workspaces(on: d).first {
+            let shown = Set(state.activeWorkspace.values)
+            let candidates = (state.displayHistory[d.id] ?? []) + workspaces(on: d)
+            if let ws = candidates.first(where: { display(of: $0).id == d.id && !shown.contains($0) }) {
                 state.activeWorkspace[d.id] = ws
             } else {
                 let name = "display-\(i + 1)"
@@ -206,6 +222,13 @@ public final class Engine {
         }
         if state.focusedWorkspace.map({ !state.activeWorkspace.values.contains($0) }) ?? true {
             state.focusedWorkspace = state.activeWorkspace[mainDisplay.id]
+        }
+        rememberShownWorkspaces()
+    }
+
+    private func rememberShownWorkspaces() {
+        for (d, ws) in state.activeWorkspace where state.displayHistory[d]?.first != ws {
+            state.displayHistory[d] = Array(([ws] + (state.displayHistory[d] ?? []).filter { $0 != ws }).prefix(8))
         }
     }
 

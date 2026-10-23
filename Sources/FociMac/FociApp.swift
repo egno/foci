@@ -103,7 +103,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.scheduleRefresh() }
+            MainActor.assumeIsolated { self?.displaysChanged() }
         }
 
         // Safety net for missed AX notifications, and config auto-reload.
@@ -173,6 +173,15 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     private func updateMenu() {
         menu.setProblems(configProblems + hotkeyProblems)
         menu.update()
+    }
+
+    /// A display was connected or disconnected (or rearranged). macOS moves windows between displays for a
+    /// while after the change; lay out again once it is done, so Foci has the last word.
+    private func displaysChanged() {
+        scheduleRefresh()
+        for delay in [1.0, 3.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.scheduleRefresh() }
+        }
     }
 
     private func scheduleRefresh() {

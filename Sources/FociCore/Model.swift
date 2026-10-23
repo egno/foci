@@ -170,6 +170,8 @@ public struct State: Equatable, Codable, Sendable {
     public var workspaceDisplay: [String: DisplayID] = [:]
     /// The workspace shown on each display.
     public var activeWorkspace: [DisplayID: String] = [:]
+    /// Workspaces each display showed, most recent first: what a reconnected display shows again.
+    public var displayHistory: [DisplayID: [String]] = [:]
     public var focusedWorkspace: String?
     public var previousWorkspace: String?
     public var windows: [WindowID: WindowRecord] = [:]
@@ -188,6 +190,7 @@ public struct State: Equatable, Codable, Sendable {
         previousProject = try c.decodeIfPresent(ProjectSlot.self, forKey: .previousProject)
         workspaceDisplay = try c.decodeIfPresent([String: DisplayID].self, forKey: .workspaceDisplay) ?? [:]
         activeWorkspace = try c.decodeIfPresent([DisplayID: String].self, forKey: .activeWorkspace) ?? [:]
+        displayHistory = try c.decodeIfPresent([DisplayID: [String]].self, forKey: .displayHistory) ?? [:]
         focusedWorkspace = try c.decodeIfPresent(String.self, forKey: .focusedWorkspace)
         previousWorkspace = try c.decodeIfPresent(String.self, forKey: .previousWorkspace)
         windows = try c.decodeIfPresent([WindowID: WindowRecord].self, forKey: .windows) ?? [:]

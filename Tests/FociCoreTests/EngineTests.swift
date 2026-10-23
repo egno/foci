@@ -458,4 +458,34 @@ struct TargetWindowTests {
         #expect(h.engine.mode == "control")
         #expect(h.engine.bindings[KeyCombo(parsing: "backspace")!] == "mode main")
     }
+
+    @Test func displaysComeAndGoAndWorkspacesFollow() {
+        let laptopAlone = Display(
+            id: Display.right.id, name: "Color LCD", frame: Rect(x: 0, y: 0, width: 1512, height: 982),
+            visibleFrame: Rect(x: 0, y: 25, width: 1512, height: 957), isMain: true)
+        let h = Harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
+        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty")
+        h.engine.run("workspace x; workspace w")
+        #expect(h.engine.state.activeWorkspace == [Display.left.id: "w", Display.right.id: "x"])
+        #expect(h.engine.focusedWorkspace == "w")
+
+        // Unplug the external display: the focused workspace moves to the laptop with its windows.
+        h.ws.displayList = [laptopAlone]
+        h.engine.refresh()
+        #expect(h.engine.state.activeWorkspace == [laptopAlone.id: "w"])
+        #expect(h.engine.focusedWorkspace == "w")
+        #expect(h.visible(1))
+        #expect(h.ws.frame(1) == laptopAlone.visibleFrame)
+        #expect(!h.visible(2))
+
+        // Plug it back in: each display shows what it showed before.
+        h.ws.displayList = [.left, .right]
+        h.engine.refresh()
+        #expect(h.engine.state.activeWorkspace == [Display.left.id: "w", Display.right.id: "x"])
+        #expect(h.engine.focusedWorkspace == "w")
+        #expect(h.ws.frame(1) == Display.left.visibleFrame)
+        #expect(h.visible(2))
+        #expect(h.ws.frame(2) == Display.right.visibleFrame)
+    }
 }
