@@ -118,7 +118,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     /// "Chrome — Inbox   [bil]" with a submenu of actions on that window.
     private func windowItem(_ w: Engine.WindowInfo, engine: Engine, projects: [String]) -> NSMenuItem {
-        var title = w.title.isEmpty ? w.appName : "\(w.appName) — \(w.title)"
+        var title = w.facts.title.isEmpty ? w.facts.appName : "\(w.facts.appName) — \(w.facts.title)"
         if title.count > 60 { title = String(title.prefix(59)) + "…" }
         let tag = [w.record.owner, w.record.floating ? "float" : nil].compactMap { $0 }.joined(separator: ", ")
         if !tag.isEmpty { title += "   [\(tag)]" }

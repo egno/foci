@@ -96,19 +96,17 @@ public final class Engine {
     public func workspaces(on d: Display) -> [String] { allWorkspaces.filter { display(of: $0).id == d.id } }
 
     public struct WindowInfo: Equatable, Sendable {
-        public let id: WindowID
-        public let appName: String
-        public let title: String
+        public let facts: WindowFacts
         public let record: WindowRecord
+        /// On screen now: its workspace is shown, its project is active (or it is unlinked), not frozen.
         public let visible: Bool
+        public var id: WindowID { facts.id }
     }
 
     /// Managed windows by workspace, then workspace order.
     public func windowList() -> [WindowInfo] {
         state.windows.compactMap { id, r in
-            facts[id].map {
-                WindowInfo(id: id, appName: $0.appName, title: $0.title, record: r, visible: isVisible(r) && !$0.isFrozen)
-            }
+            facts[id].map { WindowInfo(facts: $0, record: r, visible: isVisible(r) && !$0.isFrozen) }
         }
         .sorted { ($0.record.workspace, $0.record.seq) < ($1.record.workspace, $1.record.seq) }
     }

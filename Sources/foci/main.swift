@@ -1,6 +1,12 @@
 import AppKit
 import FociMac
 
+// `foci <args>`: CLI client talking to the running app. Finder/`open` pass no arguments.
+let cliArgs = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-psn_") }
+if !cliArgs.isEmpty {
+    exit(MainActor.assumeIsolated { CLIClient.run(Array(cliArgs)) })
+}
+
 // One instance only: two would fight over the same windows.
 let lockPath = URL.applicationSupportDirectory.appending(path: "Foci/foci.lock").path
 try? FileManager.default.createDirectory(

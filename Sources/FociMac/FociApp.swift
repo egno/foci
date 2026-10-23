@@ -17,6 +17,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     private var configProblems: [String] = []
     private var hotkeyProblems: [String] = []
     private var signalSources: [DispatchSourceSignal] = []
+    private lazy var cliServer = CLIServer { [weak self] in self?.engine.map { CLIHandler(engine: $0) } }
 
     override public init() { super.init() }
 
@@ -41,6 +42,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     public func applicationWillTerminate(_ notification: Notification) {
         // Never leave windows parked off-screen.
         engine?.restoreAll()
+        cliServer.stop()
     }
 
     private func start() {
@@ -53,7 +55,10 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         menu.engine = engine
 
         engine.onBindingsChange = { [weak self] in self?.bindHotkeys() }
-        engine.onChange = { [weak self] in self?.updateMenu() }
+        engine.onChange = { [weak self] in
+            self?.updateMenu()
+            self?.cliServer.publish(CLIHandler(engine: engine).status())
+        }
         engine.onLog = { [log] in log.info("\($0, privacy: .public)") }
         hotkeys.onHotkey = { [weak self] script in self?.run(script) }
         menu.onCommand = { [weak self] script, window in self?.run(script, window: window) }
@@ -85,6 +90,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         }
 
         bindHotkeys()
+        cliServer.start()
         engine.refresh()
         log.info("started")
     }

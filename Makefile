@@ -18,6 +18,8 @@ install: app
 	mkdir -p $(INSTALL_DIR)
 	rm -rf $(INSTALL_DIR)/Foci.app
 	cp -R $(APP) $(INSTALL_DIR)/Foci.app
+	mkdir -p $(HOME)/.local/bin
+	ln -sf $(INSTALL_DIR)/Foci.app/Contents/MacOS/foci $(HOME)/.local/bin/foci
 	open $(INSTALL_DIR)/Foci.app
 
 run: build

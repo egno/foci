@@ -38,6 +38,24 @@ State (links, active project and workspaces) is kept in `~/Library/Application S
 
 Don't run Foci and another tiling window manager (AeroSpace, yabai) at the same time.
 
+## CLI
+
+`make install` links `~/.local/bin/foci` to the app binary. With arguments it talks to the running app over
+`~/Library/Application Support/Foci/foci.sock`:
+
+```sh
+foci project bil                     # any command script, same syntax as key bindings
+foci 'workspace w; layout tiles'
+foci run --window 12055 'link iam'   # target a window by ID instead of the focused one
+foci status [--json]
+foci list-windows [--json] [--project bil | --unlinked | --active] [--workspace w] [--visible] [--pid 123]
+foci list-workspaces [--json]
+foci list-projects [--json]
+foci subscribe                       # one JSON status line per change, e.g. for sketchybar
+```
+
+Exit codes: 0 ok, 1 command failed, 2 usage error, 3 app not running.
+
 ## Code layout
 
 | Target | Contents |
@@ -53,5 +71,5 @@ Core tests run the engine against in-memory fakes (`Tests/FociCoreTests/Fakes.sw
 1. **M1:** projects, workspaces on 2 displays, maximized layout, link rules + manual linking, autostart,
    hotkey modes, menu bar, state persistence.
 2. **M2:** tiling layout per project+workspace, move, resize, balance.
-3. `foci` CLI over a Unix socket (`foci run 'project bil'`, `foci list-windows`), events for sketchybar.
+3. **M3:** `foci` CLI over a Unix socket, `subscribe` for status bars.
 4. URL router: open links in the opener project's browser window.
