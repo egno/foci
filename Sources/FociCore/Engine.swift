@@ -374,6 +374,7 @@ public final class Engine {
                 }
             case .backAndForth:
                 guard let prev = state.previousProject else { return nil }
+                if let n = prev.name, !names.contains(n) { return "unknown project '\(n)'" }
                 p = prev.name
             }
             setProject(p)
@@ -491,7 +492,8 @@ public final class Engine {
             apply()
 
         case .reveal:
-            guard let id = focusedManagedWindow() ?? windowSystem.focusedWindow(), state.windows[id] != nil else {
+            // An explicit target must exist; else the focused window, even a parked one.
+            guard let id = target ?? windowSystem.focusedWindow(), state.windows[id] != nil else {
                 return "no window"
             }
             reveal(id)

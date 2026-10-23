@@ -282,6 +282,16 @@ struct EngineTests {
         #expect(h2.engine.activeProject == nil)
         #expect(h2.record(1)?.owner == nil)
     }
+
+    @Test func backAndForthToARemovedProjectFails() {
+        let h = Harness()
+        h.engine.run("project bil; project iam")
+        var c = Config.sample
+        c.projects.removeAll { $0.name == "bil" }
+        let h2 = Harness(config: c, ws: h.ws, state: h.store.state)
+        #expect(h2.engine.run("project-back-and-forth") == ["unknown project 'bil'"])
+        #expect(h2.engine.activeProject == "iam")
+    }
 }
 
 @MainActor
@@ -434,6 +444,14 @@ struct TargetWindowTests {
         #expect(h.engine.activeProject == "bil")
         #expect(h.engine.focusedWorkspace == "c")
         #expect(h.ws.focused == WindowID(1))
+    }
+
+    @Test func revealOfAnUnknownWindowFails() {
+        let h = Harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.engine.run("project bil")
+        h.ws.focused = WindowID(1)
+        #expect(h.engine.run("reveal", window: WindowID(99)) == ["no window"])
     }
 
     @Test func windowListIsGroupedByWorkspace() {
