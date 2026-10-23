@@ -11,6 +11,8 @@ public struct Config: Equatable, Sendable {
     public var workspaceLayouts: [String: Layout] = [:]
     public var defaultLayout = Layout()
     public var apps: [String: AppDef] = [:]
+    /// App that opens links from outside any project, or from a project that uses no app with `open-url`.
+    public var browser: String?
     /// Ordered: defines `project next|prev`.
     public var projects: [ProjectDef] = []
     /// Mode name → key combo → command script.
@@ -36,6 +38,13 @@ public struct Config: Equatable, Sendable {
                 errors.append(
                     "app '\(id)' has no {project} placeholder but is used by several projects: "
                         + users.map(\.name).joined(separator: ", "))
+            }
+        }
+        if let b = browser {
+            if apps[b] == nil {
+                errors.append("browser: unknown app '\(b)'")
+            } else if apps[b]?.globalOpenURL == nil {
+                errors.append("browser: app '\(b)' has no global-open-url command")
             }
         }
         if modes["main"] == nil { errors.append("mode 'main' is missing") }
@@ -93,6 +102,11 @@ public struct AppDef: Equatable, Sendable {
     public var launch: String?
     /// Shell command starting the app outside any project.
     public var globalLaunch: String?
+    /// Shell command opening a link for a project, run after focusing the project's window of the app.
+    /// `{url}` and `{project}` are substituted. Makes the app the project's browser.
+    public var openURL: String?
+    /// Shell command opening a link outside any project, see `Config.browser`. `{url}` is substituted.
+    public var globalOpenURL: String?
     public var newWindows: NewWindowPolicy = .unlinked
     public var floating: Bool = false
     /// false: Foci ignores the app's windows completely.

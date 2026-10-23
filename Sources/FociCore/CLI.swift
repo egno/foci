@@ -12,6 +12,8 @@ public enum CLIRequest: Equatable, Sendable {
     }
 
     case run(script: String, window: WindowID?)
+    /// Open a link in the browser of the client's project, see `Engine.openURL`.
+    case open(url: String)
     case status(json: Bool)
     case listWindows(WindowFilter, json: Bool)
     case listWorkspaces(json: Bool)
@@ -23,6 +25,7 @@ public enum CLIRequest: Equatable, Sendable {
         usage: foci                          start the app (normally via Foci.app)
                foci <command script>         e.g. foci project bil; foci 'workspace w; layout tiles'
                foci run [--window <id>] <script>
+               foci open <url>               open a link in this terminal's project browser
                foci status [--json]
                foci list-windows [--json] [--project <name> | --unlinked | --active]
                                  [--workspace <name>] [--visible] [--pid <pid>]
@@ -73,6 +76,9 @@ public enum CLIRequest: Equatable, Sendable {
             }
             guard !rest.isEmpty else { throw UsageError(description: "run: missing command script") }
             return .run(script: rest.joined(separator: " "), window: window)
+        case "open":
+            guard rest.count == 1 else { throw UsageError(description: "usage: foci open <url>") }
+            return .open(url: rest[0])
         case "status":
             let json = flag("--json")
             try done()
@@ -174,12 +180,17 @@ public struct CLIHandler {
 
     public init(engine: Engine) { self.engine = engine }
 
-    public func handle(_ request: CLIRequest) -> CLIResponse {
+    /// `client`: the client process and its ancestors, the opener for `open`.
+    public func handle(_ request: CLIRequest, client: [Int32] = []) -> CLIResponse {
         switch request {
         case .help:
             return CLIResponse(stdout: CLIRequest.usage + "\n")
         case .run(let script, let window):
             let errors = engine.run(script, window: window)
+            return errors.isEmpty
+                ? CLIResponse() : CLIResponse(exitCode: 1, stderr: errors.joined(separator: "\n") + "\n")
+        case .open(let url):
+            let errors = engine.openURL(url, opener: client)
             return errors.isEmpty
                 ? CLIResponse() : CLIResponse(exitCode: 1, stderr: errors.joined(separator: "\n") + "\n")
         case .status(let json):

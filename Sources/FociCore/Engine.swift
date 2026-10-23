@@ -391,13 +391,10 @@ public final class Engine {
             apply()
 
         case .reveal:
-            guard let id = focusedManagedWindow() ?? windowSystem.focusedWindow(), let r = state.windows[id] else {
+            guard let id = focusedManagedWindow() ?? windowSystem.focusedWindow(), state.windows[id] != nil else {
                 return "no window"
             }
-            if let owner = r.owner { setProject(owner) }
-            showWorkspace(r.workspace)
-            apply()
-            focus(id)
+            reveal(id)
 
         case .link(let name):
             guard let id = focusedManagedWindow() else { return "no focused window" }
@@ -464,7 +461,103 @@ public final class Engine {
         return nil
     }
 
+    // MARK: - URL router
+
+    /// Opens a link in the opener project's browser: the project's first app with `open-url`. Its window is
+    /// revealed and focused first, so browsers that open links in their last active window put the tab there.
+    /// Without such a project, `config.browser` opens the link in an unlinked window.
+    ///
+    /// `opener` is the process that asked to open the link followed by its ancestors, e.g. `open`, zsh, kitty.
+    @discardableResult
+    public func openURL(_ url: String, opener: [Int32] = []) -> [String] {
+        let before = state
+        guard sync() else { return ["no displays"] }
+        let error = routeURL(url, project: openerProject(opener))
+        apply()
+        lastSeenFocus = windowSystem.focusedWindow()
+        hasSeenFocus = true
+        finish(before)
+        return error.map { [$0] } ?? []
+    }
+
+    /// The nearest opener process with managed windows decides: if it owns the focused window, that window's
+    /// project; else the project all its windows are linked to. Unlinked or mixed windows, or no opener with
+    /// windows, mean the active project.
+    func openerProject(_ opener: [Int32]) -> String? {
+        let focused = windowSystem.focusedWindow()
+        for pid in opener {
+            let records = state.windows.filter { facts[$0.key]?.pid == pid }
+            if records.isEmpty { continue }
+            if let focused, let r = records[focused] { return r.owner ?? state.activeProject }
+            let owners = Set(records.values.map(\.owner))
+            if owners.count == 1, let owner = owners.first ?? nil { return owner }
+            break
+        }
+        return state.activeProject
+    }
+
+    private func routeURL(_ url: String, project: String?) -> String? {
+        if let project, let ref = config.project(project)?.apps.first(where: { config.apps[$0.app]?.openURL != nil }),
+            let def = config.apps[ref.app], let template = def.openURL
+        {
+            setProject(project)
+            guard let id = browserWindow(app: def.id, owner: project) else {
+                onLog?("open \(url): \(def.id) of \(project) has no window, launching")
+                if let ws = Linker(config: config).workspace(app: def.id, project: project) { showWorkspace(ws) }
+                if def.launch != nil { return launch(def, ref: ref, project: project, url: url) }
+                launcher.run(Self.substitute(template, url: url, project: project), environment: ["FOCI_PROJECT": project])
+                return nil
+            }
+            onLog?("open \(url) in \(def.id) window \(id) of \(project)")
+            reveal(id)
+            launcher.run(Self.substitute(template, url: url, project: project), environment: ["FOCI_PROJECT": project])
+            return nil
+        }
+        guard let app = config.browser, let def = config.apps[app], let template = def.globalOpenURL else {
+            return "can't open \(url): \(project.map { "project '\($0)' uses no app with open-url and " } ?? "")"
+                + "no 'browser' with global-open-url is configured"
+        }
+        if let id = browserWindow(app: app, owner: nil) {
+            onLog?("open \(url) in unlinked \(app) window \(id)")
+            reveal(id)
+            launcher.run(Self.substitute(template, url: url, project: nil), environment: [:])
+        } else if let cmd = def.globalLaunch {
+            onLog?("open \(url): no unlinked \(app) window, launching")
+            launcher.run(cmd + " " + Self.shellQuote(url), environment: [:])
+        } else {
+            launcher.run(Self.substitute(template, url: url, project: nil), environment: [:])
+        }
+        return nil
+    }
+
+    /// The window of `app` last focused on its workspace, else the newest one.
+    private func browserWindow(app: String, owner: String?) -> WindowID? {
+        guard let newest = newestWindow(app: app, owner: owner) else { return nil }
+        let key = State.focusKey(project: state.activeProject, workspace: state.windows[newest]!.workspace)
+        if let id = state.lastFocused[key], let r = state.windows[id], r.app == app, r.owner == owner,
+            facts[id]?.isFrozen == false
+        {
+            return id
+        }
+        return newest
+    }
+
+    static func substitute(_ template: String, url: String, project: String?) -> String {
+        template
+            .replacingOccurrences(of: "{url}", with: shellQuote(url))
+            .replacingOccurrences(of: "{project}", with: project ?? "")
+    }
+
     // MARK: - Steps
+
+    /// Shows the window's project and workspace and focuses it.
+    private func reveal(_ id: WindowID) {
+        guard let r = state.windows[id] else { return }
+        if let owner = r.owner { setProject(owner) }
+        showWorkspace(r.workspace)
+        apply()
+        focus(id)
+    }
 
     private func setProject(_ p: String?) {
         guard p != state.activeProject else { return }
@@ -534,12 +627,15 @@ public final class Engine {
         }
     }
 
-    private func launch(_ def: AppDef, ref: ProjectAppRef, project: String) -> String? {
+    /// With `url`, the link is appended to the command, and the launch happens even if one is pending:
+    /// the link must not get lost.
+    private func launch(_ def: AppDef, ref: ProjectAppRef, project: String, url: String? = nil) -> String? {
         guard let template = def.launch else { return "app '\(def.id)' has no launch command" }
-        if pendingLaunches.contains(where: { $0.app == def.id && $0.project == project }) { return nil }
-        let command = template
+        if url == nil, pendingLaunches.contains(where: { $0.app == def.id && $0.project == project }) { return nil }
+        var command = template
             .replacingOccurrences(of: "{project}", with: project)
             .replacingOccurrences(of: "{open}", with: ref.open.map(Self.shellQuote).joined(separator: " "))
+        if let url { command += " " + Self.shellQuote(url) }
         onLog?("launch \(def.id) for \(project): \(command)")
         launcher.run(command, environment: ["FOCI_PROJECT": project])
         pendingLaunches.append(PendingLaunch(project: project, app: def.id, at: clock.now()))

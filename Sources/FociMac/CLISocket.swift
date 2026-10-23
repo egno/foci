@@ -142,7 +142,14 @@ public final class CLIServer {
             respond(fd, CLIResponse(exitCode: 3, stderr: "foci is waiting for the Accessibility permission\n"))
             return
         }
-        respond(fd, handler.handle(request))
+        respond(fd, handler.handle(request, client: Self.peerPID(fd).map(ProcessArgs.ancestry) ?? []))
+    }
+
+    private static func peerPID(_ fd: Int32) -> pid_t? {
+        var pid: pid_t = 0
+        var size = socklen_t(MemoryLayout<pid_t>.size)
+        guard getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &size) == 0, pid > 0 else { return nil }
+        return pid
     }
 
     private func respond(_ fd: Int32, _ response: CLIResponse) {

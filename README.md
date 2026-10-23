@@ -14,6 +14,10 @@ A small macOS window manager for working on one project at a time, keyboard firs
 - **Linking.** Rules over bundle ID, process arguments (`--user-data-dir`, `--instance-group`) and window title
   link windows automatically and re-link them after app restarts. `link <project>` / `unlink` override the rules
   by hand.
+- **URL router.** Make Foci the default browser and a link opens in the browser of the project it was clicked
+  in: the project's first app with `open-url`, in its last focused window. The opener is the app that sent the
+  link, or the nearest parent process with windows (a terminal running `open`, `gh --web`). Links from unlinked
+  windows go to the active project. Outside any project, `browser` opens them in an unlinked window.
 - **Autostart.** When you switch to a workspace and the active project has no window of an app that belongs
   there, Foci launches it (per app, configurable).
 
@@ -35,6 +39,8 @@ make log                       # follow the log
 With `start-at-login = true` (the default config) Foci registers itself as a login item; macOS may ask you to allow
 it in System Settings → General → Login Items.
 
+To route links, pick Foci in System Settings → Desktop & Dock → Default web browser.
+
 On first start Foci asks for the Accessibility permission and writes an example config to
 `~/.config/foci/config.toml`. The config is reloaded on save; problems appear in the menu bar menu (⚠).
 State (links, active project and workspaces) is kept in `~/Library/Application Support/Foci/state.json`.
@@ -50,6 +56,7 @@ Don't run Foci and another tiling window manager (AeroSpace, yabai) at the same 
 foci project bil                     # any command script, same syntax as key bindings
 foci 'workspace w; layout tiles'
 foci run --window 12055 'link iam'   # target a window by ID instead of the focused one
+foci open https://example.com        # open a link in this terminal's project browser (BROWSER='foci open')
 foci status [--json]
 foci list-windows [--json] [--project bil | --unlinked | --active] [--workspace w] [--visible] [--pid 123]
 foci list-workspaces [--json]
@@ -75,4 +82,4 @@ Core tests run the engine against in-memory fakes (`Tests/FociCoreTests/Fakes.sw
    hotkey modes, menu bar, state persistence.
 2. **M2:** tiling layout per project+workspace, move, resize, balance.
 3. **M3:** `foci` CLI over a Unix socket, `subscribe` for status bars.
-4. URL router: open links in the opener project's browser window.
+4. **M4:** URL router: open links in the opener project's browser window.

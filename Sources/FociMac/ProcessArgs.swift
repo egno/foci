@@ -1,6 +1,21 @@
 import Darwin
 
 enum ProcessArgs {
+    /// `pid` followed by its parent, grandparent, ... up to (not including) launchd.
+    static func ancestry(of pid: pid_t) -> [Int32] {
+        var chain: [Int32] = []
+        var p = pid
+        while p > 1 && chain.count < 64 && !chain.contains(p) {
+            chain.append(p)
+            var info = kinfo_proc()
+            var size = MemoryLayout<kinfo_proc>.size
+            var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, p]
+            guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { break }
+            p = info.kp_eproc.e_ppid
+        }
+        return chain
+    }
+
     /// The command line of a same-user process (argv joined by spaces), via `KERN_PROCARGS2`.
     static func commandLine(pid: pid_t) -> String? {
         var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]

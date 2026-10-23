@@ -17,6 +17,8 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     private var configProblems: [String] = []
     private var hotkeyProblems: [String] = []
     private var signalSources: [DispatchSourceSignal] = []
+    /// Links that arrived before the engine started (e.g. Foci was launched to open one).
+    private var pendingURLs: [(url: String, opener: [Int32])] = []
     private lazy var cliServer = CLIServer { [weak self] in self?.engine.map { CLIHandler(engine: $0) } }
 
     override public init() { super.init() }
@@ -37,6 +39,22 @@ public final class FociApp: NSObject, NSApplicationDelegate {
             return
         }
         start()
+    }
+
+    /// Links and HTML files, as the default browser. Called from inside the Apple Event, which names the sender.
+    public func application(_ application: NSApplication, open urls: [URL]) {
+        let sender = NSAppleEventManager.shared().currentAppleEvent?
+            .attributeDescriptor(forKeyword: keySenderPIDAttr)?.int32Value
+        let opener = sender.map(ProcessArgs.ancestry) ?? []
+        for url in urls {
+            log.info("open \(url.absoluteString, privacy: .public) from \(opener, privacy: .public)")
+            if let engine {
+                for e in engine.openURL(url.absoluteString, opener: opener) { log.error("\(e, privacy: .public)") }
+                updateMenu()
+            } else {
+                pendingURLs.append((url.absoluteString, opener))
+            }
+        }
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
@@ -92,6 +110,10 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         bindHotkeys()
         cliServer.start()
         engine.refresh()
+        for (url, opener) in pendingURLs {
+            for e in engine.openURL(url, opener: opener) { log.error("\(e, privacy: .public)") }
+        }
+        pendingURLs = []
         log.info("started")
     }
 

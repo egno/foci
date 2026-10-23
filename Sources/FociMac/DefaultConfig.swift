@@ -18,6 +18,12 @@ enum DefaultConfig {
         # of the focused workspace for the active project only; Foci remembers it.
         default-layout = 'maximized'
 
+        # URL router: make Foci the default browser (System Settings > Desktop & Dock > Default web browser) and
+        # links open in the browser of the project they were clicked in: the project's first app with 'open-url'.
+        # A link from an unlinked window (Slack) goes to the active project. 'browser' opens links when that
+        # project has no browser, or there is no active project, using its 'global-open-url'.
+        browser = 'chrome'
+
         # Workspace -> display: 'main' (menu bar), 'secondary', 1-based index from the left, or part of the name.
         # Long form: x = { display = 'secondary', layout = 'tiles', orientation = 'vertical' }
         # Workspaces not listed here live on the display where they were first used.
@@ -42,6 +48,11 @@ enum DefaultConfig {
         # workspace      where new windows of the app go
         # launch         shell command (login shell) starting the app for a project; {project}, {open}
         # global-launch  shell command starting the app when no project uses it
+        # open-url       shell command opening a link for a project; {url} (already quoted), {project}.
+        #                Foci focuses the project's window of the app first, so the tab opens there. Without a
+        #                window, Foci runs 'launch' with the link appended. Name the app ('open -a ...'):
+        #                a bare 'open {url}' would send the link back to Foci.
+        # global-open-url  the same outside any project, see 'browser'
         # new-windows    'unlinked' (default) or 'active-project': new windows matching no rule
         #                join the active project if it uses this app
         # floating       don't maximize
@@ -56,6 +67,8 @@ enum DefaultConfig {
         new-windows = 'active-project'
         launch = 'open -na "Google Chrome" --args --new-window'
         global-launch = 'open -na "Google Chrome" --args --new-window'
+        open-url = 'open -a "Google Chrome" {url}'
+        global-open-url = 'open -a "Google Chrome" {url}'
 
         # One kitty process per project, attached to the Herdr session of the same name.
         [apps.kitty]
@@ -85,6 +98,7 @@ enum DefaultConfig {
         bundle-id = 'org.mozilla.firefox'
         workspace = 'f'
         launch = 'open -a Firefox'
+        open-url = 'open -a Firefox {url}'
 
         # Global apps: used by no project, so always unlinked. Listed only to place them on a workspace.
         [apps.slack]

@@ -43,9 +43,12 @@ public final class TOMLConfigSource: ConfigSource {
         }
         var c = Config()
         try checkKeys(
-            root, ["start-at-login", "gap", "default-layout", "workspaces", "apps", "projects", "mode"], at: "top level")
+            root,
+            ["start-at-login", "gap", "default-layout", "workspaces", "apps", "browser", "projects", "mode"],
+            at: "top level")
         if let v = root["start-at-login"] { c.startAtLogin = try bool(v, "start-at-login") }
 
+        if let b = root["browser"] { c.browser = try string(b, "browser") }
         if let gap = root["gap"] { c.gap = try number(gap, "gap") }
         if let l = root["default-layout"] { c.defaultLayout.kind = try layoutKind(l, "default-layout") }
 
@@ -124,7 +127,8 @@ public final class TOMLConfigSource: ConfigSource {
     private static func parseApp(_ id: String, _ t: TOMLTable) throws -> AppDef {
         let at = "apps.\(id)"
         try checkKeys(
-            t, ["bundle-id", "args", "title", "workspace", "launch", "global-launch", "new-windows", "floating", "manage"],
+            t, ["bundle-id", "args", "title", "workspace", "launch", "global-launch", "open-url", "global-open-url",
+                "new-windows", "floating", "manage"],
             at: at)
         var a = AppDef(id: id)
         func str(_ k: String) throws -> String? { try t[k].map { try string($0, "\(at).\(k)") } }
@@ -134,6 +138,8 @@ public final class TOMLConfigSource: ConfigSource {
         a.workspace = try str("workspace")
         a.launch = try str("launch")
         a.globalLaunch = try str("global-launch")
+        a.openURL = try str("open-url")
+        a.globalOpenURL = try str("global-open-url")
         if let nw = try str("new-windows") {
             guard let p = NewWindowPolicy(rawValue: nw) else {
                 throw ConfigError("\(at).new-windows: expected 'unlinked' or 'active-project'")

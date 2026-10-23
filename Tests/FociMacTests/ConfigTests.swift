@@ -13,6 +13,8 @@ struct ConfigTests {
         #expect(c.workspaces["x"] == .secondary)
         #expect(c.apps["chrome"]?.newWindows == .activeProject)
         #expect(c.project("bil")?.ref("dbeaver")?.autostart == false)
+        #expect(c.browser == "chrome")
+        #expect(c.apps["chrome"]?.openURL == #"open -a "Google Chrome" {url}"#)
         for (mode, bindings) in c.modes {
             for combo in bindings.keys {
                 #expect(Hotkeys.keyCodes[combo.key] != nil, "\(mode): \(combo)")
@@ -56,4 +58,10 @@ struct ConfigTests {
         #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("gap = ") }
         #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("default-layout = 'bsp'") }
     }
+
+    @Test func browserMustHaveGlobalOpenURL() throws {
+        let c = try TOMLConfigSource.parse("browser = 'ff'\n[apps.ff]\nopen-url = 'open -a Firefox {url}'")
+        #expect(c.validate() == ["browser: app 'ff' has no global-open-url command"])
+        #expect(try TOMLConfigSource.parse("browser = 'ff'").validate() == ["browser: unknown app 'ff'"])
+    }}
 }

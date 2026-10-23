@@ -9,6 +9,7 @@ struct CLIParseTests {
         #expect(try CLIRequest.parse(["workspace w; layout tiles"]) == .run(script: "workspace w; layout tiles", window: nil))
         #expect(try CLIRequest.parse(["run", "--window", "42", "unlink"]) == .run(script: "unlink", window: WindowID(42)))
         #expect(try CLIRequest.parse([]) == .help)
+        #expect(try CLIRequest.parse(["open", "https://a.b/?q=1;2"]) == .open(url: "https://a.b/?q=1;2"))
     }
 
     @Test func listWindowsFilters() throws {
