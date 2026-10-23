@@ -5,6 +5,7 @@ public enum Direction: Equatable, Sendable {
 }
 
 public enum Command: Equatable, Sendable {
+    public enum LayoutChange: Equatable, Sendable { case set(LayoutKind), toggle, toggleOrientation }
     public enum ProjectTarget: Equatable, Sendable { case named(String), none, cycle(Direction), backAndForth }
     public enum WorkspaceTarget: Equatable, Sendable { case named(String), cycle(Direction), backAndForth }
 
@@ -14,6 +15,13 @@ public enum Command: Equatable, Sendable {
     case moveWorkspaceToDisplay(Direction)
     case focusDisplay(Direction)
     case focusWindow(Direction)
+    /// Swap the focused window with its neighbour in the workspace order.
+    case moveWindow(Direction)
+    case layout(LayoutChange)
+    /// Grow (+) or shrink (-) the focused tile by this many points.
+    case resize(Double)
+    /// Make all tiles of the focused workspace the same size.
+    case balance
     /// Link the focused window to a project; nil = the active project.
     case link(String?)
     case unlink
@@ -88,6 +96,22 @@ public enum Command: Equatable, Sendable {
         case "move-workspace-to-display": return .moveWorkspaceToDisplay(try direction())
         case "focus-display": return .focusDisplay(try direction())
         case "focus": return .focusWindow(try direction())
+        case "move": return .moveWindow(try direction())
+        case "layout":
+            switch try one() {
+            case "tiles": return .layout(.set(.tiles))
+            case "maximized": return .layout(.set(.maximized))
+            case "toggle": return .layout(.toggle)
+            case "toggle-orientation": return .layout(.toggleOrientation)
+            case let a: throw ParseError(description: "layout: expected tiles|maximized|toggle|toggle-orientation, got '\(a)'")
+            }
+        case "resize":
+            let a = try one()
+            guard a.hasPrefix("+") || a.hasPrefix("-"), let n = Double(a) else {
+                throw ParseError(description: "resize: expected +N or -N points, got '\(a)'")
+            }
+            return .resize(n)
+        case "balance": try none(); return .balance
         case "link":
             let p = try one()
             return .link(p == "--active" ? nil : p)

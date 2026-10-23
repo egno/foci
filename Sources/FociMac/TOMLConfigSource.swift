@@ -42,9 +42,10 @@ public final class TOMLConfigSource: ConfigSource {
             throw ConfigError("line \(e.source.begin.line): \(e.description)")
         }
         var c = Config()
-        try checkKeys(root, ["gap", "workspaces", "apps", "projects", "mode"], at: "top level")
+        try checkKeys(root, ["gap", "default-layout", "workspaces", "apps", "projects", "mode"], at: "top level")
 
         if let gap = root["gap"] { c.gap = try number(gap, "gap") }
+        if let l = root["default-layout"] { c.defaultLayout.kind = try layoutKind(l, "default-layout") }
 
         if let ws = root["workspaces"] {
             let t = try table(ws, "workspaces")
@@ -54,8 +55,20 @@ public final class TOMLConfigSource: ConfigSource {
                     c.workspaces[name] = DisplaySpec(parsing: s)
                 } else {
                     let wt = try table(v, "workspaces.\(name)")
-                    try checkKeys(wt, ["display"], at: "workspaces.\(name)")
+                    let at = "workspaces.\(name)"
+                    try checkKeys(wt, ["display", "layout", "orientation"], at: at)
                     c.workspaces[name] = DisplaySpec(parsing: try wt["display"].map { try string($0, "display") } ?? "main")
+                    if wt["layout"] != nil || wt["orientation"] != nil {
+                        var layout = c.defaultLayout
+                        if let l = wt["layout"] { layout.kind = try layoutKind(l, "\(at).layout") }
+                        if let o = wt["orientation"] {
+                            guard let v = Orientation(rawValue: try string(o, "\(at).orientation")) else {
+                                throw ConfigError("\(at).orientation: expected auto, horizontal or vertical")
+                            }
+                            layout.orientation = v
+                        }
+                        c.workspaceLayouts[name] = layout
+                    }
                 }
             }
         }
@@ -178,6 +191,13 @@ public final class TOMLConfigSource: ConfigSource {
     private static func string(_ v: TOMLValueConvertible, _ at: String) throws -> String {
         guard let s = v.string else { throw ConfigError("\(at): expected a string") }
         return s
+    }
+
+    private static func layoutKind(_ v: TOMLValueConvertible, _ at: String) throws -> LayoutKind {
+        guard let k = LayoutKind(rawValue: try string(v, at)) else {
+            throw ConfigError("\(at): expected 'maximized' or 'tiles'")
+        }
+        return k
     }
 
     private static func bool(_ v: TOMLValueConvertible, _ at: String) throws -> Bool {

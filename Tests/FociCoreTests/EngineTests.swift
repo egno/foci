@@ -296,3 +296,100 @@ struct StartupTests {
         #expect(h2.engine.activeProject == "iam")
     }
 }
+
+@MainActor
+struct TilingTests {
+    /// Three bil Chrome windows on w, tiled.
+    func tiled(gap: Double = 0) -> Harness {
+        var c = Config.sample
+        c.gap = gap
+        let h = Harness(config: c)
+        for i: UInt32 in 1...3 { h.ws.open(i, bundle: "com.google.Chrome", title: "bil - Google Chrome") }
+        h.engine.run("workspace w; project bil; layout tiles")
+        return h
+    }
+
+    @Test func tilesSplitTheDisplaySideBySideInOrder() {
+        let h = tiled()
+        let a = Display.left.visibleFrame
+        let w = a.width / 3
+        #expect(h.ws.frame(1) == Rect(x: 0, y: a.y, width: w, height: a.height))
+        #expect(h.ws.frame(2) == Rect(x: w, y: a.y, width: w, height: a.height))
+        #expect(h.ws.frame(3) == Rect(x: 2 * w, y: a.y, width: w, height: a.height))
+    }
+
+    @Test func gapsSurroundAndSeparateTiles() {
+        let h = tiled(gap: 10)
+        let a = Display.left.visibleFrame
+        let w = (a.width - 20 - 20) / 3
+        #expect(h.ws.frame(1) == Rect(x: 10, y: a.y + 10, width: w, height: a.height - 20))
+        #expect(h.ws.frame(2).x == 10 + w + 10)
+        #expect(h.ws.frame(3).maxX == a.maxX - 10)
+    }
+
+    @Test func toggleOrientationStacksWindows() {
+        let h = tiled()
+        h.engine.run("layout toggle-orientation")
+        let a = Display.left.visibleFrame
+        #expect(h.ws.frame(1) == Rect(x: 0, y: a.y, width: a.width, height: a.height / 3))
+        #expect(h.ws.frame(3).maxY == a.maxY)
+    }
+
+    @Test func moveSwapsWithNeighbour() {
+        let h = tiled()
+        h.ws.focused = WindowID(1)
+        h.engine.run("move next")
+        #expect(h.engine.visibleWindows(in: "w") == [WindowID(2), WindowID(1), WindowID(3)])
+        #expect(h.ws.frame(2).x == 0)
+        #expect(h.ws.focused == WindowID(1))
+    }
+
+    @Test func resizeGrowsTheFocusedTileByPointsAndBalanceUndoesIt() {
+        let h = tiled()
+        let before = h.ws.frame(2).width
+        h.ws.focused = WindowID(2)
+        h.engine.run("resize +120")
+        #expect(abs(h.ws.frame(2).width - (before + 120)) < 0.001)
+        #expect(abs(h.ws.frame(1).width - (before - 60)) < 0.001)
+        #expect(abs(h.ws.frame(3).maxX - Display.left.visibleFrame.maxX) < 0.001)
+        h.engine.run("balance")
+        #expect(abs(h.ws.frame(2).width - before) < 0.001)
+    }
+
+    @Test func floatingWindowsStayOutOfTheTiles() {
+        let h = tiled()
+        h.ws.focused = WindowID(3)
+        h.engine.run("float")
+        #expect(h.ws.frame(1).width == Display.left.visibleFrame.width / 2)
+    }
+
+    @Test func layoutIsRememberedPerProject() {
+        let h = tiled()
+        h.ws.open(9, bundle: "com.google.Chrome", title: "iam - Google Chrome")
+        h.ws.open(10, bundle: "com.google.Chrome", title: "iam - Google Chrome")
+        h.engine.run("project iam")
+        #expect(h.engine.layout(of: "w").kind == .maximized)
+        #expect(h.ws.frame(9) == Display.left.visibleFrame)
+        h.engine.run("project bil")
+        #expect(h.engine.layout(of: "w").kind == .tiles)
+        #expect(h.ws.frame(1).width == Display.left.visibleFrame.width / 3)
+    }
+
+    @Test func configSetsTheInitialLayout() {
+        var c = Config.sample
+        c.workspaceLayouts["w"] = Layout(.tiles)
+        let h = Harness(config: c)
+        h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "Gmail")
+        h.engine.run("workspace w")
+        #expect(h.ws.frame(1).width == Display.left.visibleFrame.width / 2)
+    }
+
+    @Test func oldStateFilesWithoutNewKeysStillLoad() throws {
+        let json = #"{"activeProject":"bil","windows":{"7":{"workspace":"w","owner":"bil","seq":3}}}"#
+        let s = try JSONDecoder().decode(State.self, from: Data(json.utf8))
+        #expect(s.activeProject == "bil")
+        #expect(s.windows[WindowID(7)]?.weight == 1)
+        #expect(s.layouts == [:])
+    }
+}

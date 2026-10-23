@@ -20,25 +20,64 @@ public struct Planner: Sendable {
         records: [WindowID: WindowRecord],
         facts: [WindowID: WindowFacts],
         isVisible: (WindowRecord) -> Bool,
-        displayOf: (String) -> Display
+        displayOf: (String) -> Display,
+        layoutOf: (String) -> Layout
     ) -> [Target] {
         var shown: [Target] = []
         var hidden: [Target] = []
+        var tiled: [String: [(WindowID, WindowRecord)]] = [:]
         for (id, record) in records.sorted(by: { $0.key < $1.key }) {
             guard let f = facts[id], !f.isFrozen else { continue }
             let display = displayOf(record.workspace)
-            if isVisible(record) {
-                shown.append(Target(id: id, frame: onScreenFrame(record, current: f.frame, on: display), visible: true))
-            } else {
+            if !isVisible(record) {
                 hidden.append(Target(id: id, frame: parkedFrame(size: f.frame, on: display), visible: false))
+            } else if record.floating {
+                shown.append(Target(id: id, frame: floatingFrame(record, current: f.frame, on: display), visible: true))
+            } else {
+                tiled[record.workspace, default: []].append((id, record))
             }
+        }
+        for (ws, windows) in tiled.sorted(by: { $0.key < $1.key }) {
+            let ordered = windows.sorted { ($0.1.seq, $0.0) < ($1.1.seq, $1.0) }
+            let frames = layoutFrames(
+                weights: ordered.map(\.1.weight), layout: layoutOf(ws), on: displayOf(ws))
+            shown += zip(ordered, frames).map { Target(id: $0.0.0, frame: $0.1, visible: true) }
         }
         return shown + hidden
     }
 
-    public func onScreenFrame(_ record: WindowRecord, current: Rect, on display: Display) -> Rect {
+    /// Frames for the non-floating windows of one workspace, in order.
+    public func layoutFrames(weights: [Double], layout: Layout, on display: Display) -> [Rect] {
+        let area = display.visibleFrame.insetBy(gap)
+        guard layout.kind == .tiles, weights.count > 1 else { return weights.map { _ in area } }
+        let horizontal = isHorizontal(layout, area)
+        let length = tileLength(count: weights.count, area: area, horizontal: horizontal)
+        let total = weights.reduce(0, +)
+        var offset = horizontal ? area.x : area.y
+        return weights.map { w in
+            let size = length * w / total
+            defer { offset += size + gap }
+            return horizontal
+                ? Rect(x: offset, y: area.y, width: size, height: area.height)
+                : Rect(x: area.x, y: offset, width: area.width, height: size)
+        }
+    }
+
+    /// The points shared by the tiles along the split axis (the area minus inner gaps).
+    public func tileLength(count: Int, area: Rect, horizontal: Bool) -> Double {
+        (horizontal ? area.width : area.height) - gap * Double(count - 1)
+    }
+
+    public func isHorizontal(_ layout: Layout, _ area: Rect) -> Bool {
+        switch layout.orientation {
+        case .horizontal: return true
+        case .vertical: return false
+        case .auto: return area.width >= area.height
+        }
+    }
+
+    public func floatingFrame(_ record: WindowRecord, current: Rect, on display: Display) -> Rect {
         let area = display.visibleFrame
-        guard record.floating else { return area.insetBy(gap) }
         var r = record.floatingFrame ?? current
         let c = r.center
         if !area.contains(x: c.x, y: c.y) {

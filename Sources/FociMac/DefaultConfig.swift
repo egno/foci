@@ -12,7 +12,13 @@ enum DefaultConfig {
 
         gap = 0
 
+        # 'maximized': every window fills the display, 'focus next|prev' cycles through them.
+        # 'tiles': windows side by side (landscape) or stacked (portrait). 'layout ...' commands change the layout
+        # of the focused workspace for the active project only; Foci remembers it.
+        default-layout = 'maximized'
+
         # Workspace -> display: 'main' (menu bar), 'secondary', 1-based index from the left, or part of the name.
+        # Long form: x = { display = 'secondary', layout = 'tiles', orientation = 'vertical' }
         # Workspaces not listed here live on the display where they were first used.
         [workspaces]
         a = 'main'
@@ -128,6 +134,9 @@ enum DefaultConfig {
         #   move-to-workspace [--follow] <name>
         #   move-workspace-to-display next|prev    focus-display next|prev
         #   focus next|prev                    cycle windows of the focused workspace
+        #   move next|prev                     swap the focused window with its neighbour (tile order)
+        #   layout tiles|maximized|toggle|toggle-orientation
+        #   resize +N|-N (points)    balance
         #   link <project>|--active    unlink  float (toggle)
         #   launch <app>       focus the active project's window of the app, or launch it
         #   mode <name>    reload-config    exec <shell command>
@@ -148,10 +157,24 @@ enum DefaultConfig {
         backtick = 'project-back-and-forth; mode main'
         slash = 'mode project'
 
-        j = 'focus next; mode main'
-        k = 'focus prev; mode main'
+        # Window order is one row (tiles side by side) or one column (stacked/maximized):
+        # left/up = previous, right/down = next.
+        left = 'focus prev; mode main'
+        up = 'focus prev; mode main'
+        right = 'focus next; mode main'
+        down = 'focus next; mode main'
         space = 'focus next; mode main'
+        shift-left = 'move prev; mode main'
+        shift-up = 'move prev; mode main'
+        shift-right = 'move next; mode main'
+        shift-down = 'move next; mode main'
         z = 'float; mode main'
+        e = 'layout toggle; mode main'
+        shift-e = 'layout toggle-orientation; mode main'
+        b = 'balance; mode main'
+        # Stay in control mode to repeat: minus minus minus esc
+        minus = 'resize -50'
+        equal = 'resize +50'
 
         m = 'focus-display next; mode main'
         tab = 'move-workspace-to-display next; mode main'

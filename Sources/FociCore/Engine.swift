@@ -67,7 +67,13 @@ public final class Engine {
             && (r.owner == nil || r.owner == state.activeProject)
     }
 
-    /// Visible windows of a workspace, in creation order.
+    /// The workspace's layout under the active project.
+    public func layout(of workspace: String) -> Layout {
+        state.layouts[State.focusKey(project: state.activeProject, workspace: workspace)]
+            ?? config.workspaceLayouts[workspace] ?? config.defaultLayout
+    }
+
+    /// Visible windows of a workspace, in workspace order.
     public func visibleWindows(in workspace: String) -> [WindowID] {
         state.windows
             .filter { $0.value.workspace == workspace && isVisible($0.value) && facts[$0.key]?.isFrozen == false }
@@ -314,6 +320,55 @@ public final class Engine {
             let next = i.map { (($0 + (dir == .next ? 1 : -1)) + list.count) % list.count } ?? 0
             focus(list[next])
 
+        case .moveWindow(let dir):
+            guard let id = focusedManagedWindow(), state.windows[id]?.floating == false else {
+                return "no focused tiled window"
+            }
+            let list = tiledWindows(in: focusedWorkspace)
+            guard list.count > 1, let i = list.firstIndex(of: id) else { return nil }
+            let other = list[(i + (dir == .next ? 1 : -1) + list.count) % list.count]
+            let seq = state.windows[id]!.seq
+            state.windows[id]!.seq = state.windows[other]!.seq
+            state.windows[other]!.seq = seq
+            apply()
+            focus(id)
+
+        case .layout(let change):
+            let ws = focusedWorkspace
+            var l = layout(of: ws)
+            switch change {
+            case .set(let kind): l.kind = kind
+            case .toggle: l.kind = l.kind == .tiles ? .maximized : .tiles
+            case .toggleOrientation:
+                let area = display(of: ws).visibleFrame
+                let horizontal = Planner(displays: displays, gap: config.gap).isHorizontal(l, area)
+                l.kind = .tiles
+                l.orientation = horizontal ? .vertical : .horizontal
+            }
+            state.layouts[State.focusKey(project: state.activeProject, workspace: ws)] = l
+            apply()
+            focusBest(in: ws)
+
+        case .resize(let points):
+            guard let id = focusedManagedWindow() else { return "no focused window" }
+            let ws = focusedWorkspace
+            let list = tiledWindows(in: ws)
+            guard layout(of: ws).kind == .tiles, list.count > 1, list.contains(id) else { return nil }
+            let planner = Planner(displays: displays, gap: config.gap)
+            let area = display(of: ws).visibleFrame.insetBy(config.gap)
+            let length = planner.tileLength(
+                count: list.count, area: area, horizontal: planner.isHorizontal(layout(of: ws), area))
+            let total = list.reduce(0) { $0 + state.windows[$1]!.weight }
+            let w = state.windows[id]!.weight
+            // Choose the new weight so that the tile grows by exactly `points` (others shrink proportionally).
+            let share = min(max(w / total + points / length, 0.05), 0.95)
+            state.windows[id]!.weight = w + (share * total - w) / (1 - share)
+            apply()
+
+        case .balance:
+            for id in tiledWindows(in: focusedWorkspace) { state.windows[id]?.weight = 1 }
+            apply()
+
         case .link(let name):
             guard let id = focusedManagedWindow() else { return "no focused window" }
             guard let p = name ?? state.activeProject else { return "no active project" }
@@ -425,6 +480,11 @@ public final class Engine {
         }
     }
 
+    /// Visible, non-floating windows of a workspace, in tile order.
+    private func tiledWindows(in ws: String) -> [WindowID] {
+        visibleWindows(in: ws).filter { state.windows[$0]?.floating == false }
+    }
+
     private func newestWindow(app: String, owner: String?) -> WindowID? {
         state.windows.filter { $0.value.app == app && $0.value.owner == owner && facts[$0.key]?.isFrozen == false }
             .max { $0.value.seq < $1.value.seq }?.key
@@ -468,7 +528,8 @@ public final class Engine {
     private func apply() {
         let planner = Planner(displays: displays, gap: config.gap)
         let targets = planner.plan(
-            records: state.windows, facts: facts, isVisible: isVisible, displayOf: display(of:))
+            records: state.windows, facts: facts, isVisible: isVisible, displayOf: display(of:),
+            layoutOf: layout(of:))
         for t in targets {
             guard let f = facts[t.id], !f.frame.isClose(to: t.frame) else { continue }
             windowSystem.setFrame(t.id, t.frame)
@@ -485,10 +546,12 @@ public final class Engine {
     public func restoreAll() {
         guard !displays.isEmpty else { return }
         let planner = Planner(displays: displays, gap: config.gap)
-        for (id, r) in state.windows {
-            guard let f = facts[id], !f.isFrozen else { continue }
-            let target = planner.onScreenFrame(r, current: f.frame, on: display(of: r.workspace))
-            if !f.frame.isClose(to: target) { windowSystem.setFrame(id, target) }
+        let targets = planner.plan(
+            records: state.windows, facts: facts, isVisible: { _ in true }, displayOf: display(of:),
+            layoutOf: layout(of:))
+        for t in targets {
+            guard let f = facts[t.id], !f.frame.isClose(to: t.frame) else { continue }
+            windowSystem.setFrame(t.id, t.frame)
         }
     }
 }

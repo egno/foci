@@ -23,8 +23,10 @@ struct ConfigTests {
         let c = try TOMLConfigSource.parse(
             """
             gap = 8
+            default-layout = 'tiles'
             [workspaces]
             w = { display = 'LG' }
+            c = { layout = 'maximized', orientation = 'vertical' }
             x = '2'
             [apps.cursor]
             bundle-id = 'com.cursor'
@@ -38,7 +40,9 @@ struct ConfigTests {
             alt-1 = ['project bil', 'workspace w']
             """)
         #expect(c.gap == 8)
-        #expect(c.workspaces == ["w": .name("LG"), "x": .index(2)])
+        #expect(c.workspaces == ["w": .name("LG"), "c": .main, "x": .index(2)])
+        #expect(c.defaultLayout == Layout(.tiles))
+        #expect(c.workspaceLayouts == ["c": Layout(.maximized, orientation: .vertical)])
         #expect(c.apps["cursor"]?.floating == true)
         #expect(c.projects[0].apps[1] == ProjectAppRef(app: "cursor", autostart: false, workspace: "c", open: ["~/a", "/b"]))
         #expect(c.modes["main"]?[KeyCombo(modifiers: [.alt], key: "1")] == "project bil; workspace w")
@@ -49,5 +53,6 @@ struct ConfigTests {
         #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("[mode.main.binding]\nalt-1 = 'teleport'") }
         #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("[apps.x]\ntitle = '(unclosed'") }
         #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("gap = ") }
+        #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("default-layout = 'bsp'") }
     }
 }

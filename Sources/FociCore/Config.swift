@@ -1,10 +1,13 @@
 import Foundation
 
 public struct Config: Equatable, Sendable {
-    /// Gap in points around maximized windows.
+    /// Gap in points around and between windows.
     public var gap: Double = 0
     /// Workspace name → display spec, see `DisplaySpec`. Every workspace lives on exactly one display.
     public var workspaces: [String: DisplaySpec] = [:]
+    /// Initial layout per workspace; `defaultLayout` for the rest. `layout` commands override both at runtime.
+    public var workspaceLayouts: [String: Layout] = [:]
+    public var defaultLayout = Layout()
     public var apps: [String: AppDef] = [:]
     /// Ordered: defines `project next|prev`.
     public var projects: [ProjectDef] = []

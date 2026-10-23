@@ -8,8 +8,9 @@ A small macOS window manager for working on one project at a time, keyboard firs
 - **Workspaces**, AeroSpace style. Every workspace lives on one display, and each display shows one workspace at a
   time. Workspace names are shared by all projects: `w` is "web" in every project and shows only the active
   project's browser windows (plus unlinked ones).
-- **Maximized by default.** Windows fill their display. `focus next|prev` cycles through them; `float` toggles a
-  window out of the layout.
+- **Maximized by default, tiles on demand.** Each workspace is `maximized` (windows fill the display, `focus next|prev`
+  cycles) or `tiles` (side by side on landscape, stacked on portrait; `move`, `resize`, `balance`). The layout is
+  remembered per project and workspace. `float` takes a window out of the layout.
 - **Linking.** Rules over bundle ID, process arguments (`--user-data-dir`, `--instance-group`) and window title
   link windows automatically and re-link them after app restarts. `link <project>` / `unlink` override the rules
   by hand.
@@ -49,8 +50,8 @@ Core tests run the engine against in-memory fakes (`Tests/FociCoreTests/Fakes.sw
 
 ## Roadmap
 
-1. **M1 (this):** projects, workspaces on 2 displays, maximized layout, link rules + manual linking, autostart,
+1. **M1:** projects, workspaces on 2 displays, maximized layout, link rules + manual linking, autostart,
    hotkey modes, menu bar, state persistence.
-2. Tiling layout per workspace (`layout tiles|maximized`), resize.
+2. **M2:** tiling layout per project+workspace, move, resize, balance.
 3. `foci` CLI over a Unix socket (`foci run 'project bil'`, `foci list-windows`), events for sketchybar.
 4. URL router: open links in the opener project's browser window.
