@@ -21,7 +21,12 @@ enum DefaultConfig {
 
         gap = 0
 
-        # 'maximized': every window fills the display, 'focus next|prev' cycles through them.
+        # Maximized windows are an accordion: the focused one leaves this many points at each side, where the
+        # edges of the windows behind it show. 0 = every window fills the display.
+        accordion-padding = 30
+
+        # 'maximized': every window fills the display (an accordion, see 'accordion-padding'), 'focus next|prev'
+        # cycles through them.
         # 'tiles': windows side by side (landscape) or stacked (portrait). 'layout ...' commands change the layout
         # of the focused workspace for the active project only; Foci remembers it.
         default-layout = 'maximized'
@@ -151,6 +156,7 @@ enum DefaultConfig {
         # Order = 'project next|prev' order.
         # autostart (default true): when you switch to the app's workspace in this project and the project has
         # no window of the app, launch it.
+        # key (default: the first letter of the name): what '{project}' in a binding key stands for.
         [[projects]]
         name = 'p'
         apps = ['firefox', { app = 'cursor', autostart = false }, { app = 'kitty', autostart = false }]
@@ -178,15 +184,16 @@ enum DefaultConfig {
         #   move next|prev                     swap the focused window with its neighbour (tile order)
         #   layout tiles|maximized|toggle|toggle-orientation
         #   resize +N|-N (points)    balance
-        #   link <project>|--active    unlink  float (toggle)
+        #   link [--follow] <project>|--active    unlink [--follow]  float (toggle)
         #   launch <app>       focus the active project's window of the app, or launch it
         #   mode <name>    reload-config    exec <shell command>
         #
         # A binding is a script, an array of commands, or
         # { run = <script or array>, label = 'shown in key hints', repeat = true (see 'repeat-timeout') }.
         # In a key, 'leader' stands for every leader key, and '{workspace}' for every letter a-z and any other
-        # one-character workspace in [workspaces] ('{workspace}' in its script and label is replaced too).
-        # A key bound by name wins.
+        # one-character workspace in [workspaces] ('{workspace}' in its script and label is replaced too). A key
+        # bound by name wins. '{project}' stands for each project's key, and for its name in the script and label;
+        # a project key that is also bound by name is an error (set 'key' in its [[projects]]).
         #
         # Modes other than 'main' are submenus, like the leader key in AstroNvim: one key acts, then Foci returns to
         # 'main', unless the key enters another mode or the mode is 'sticky = true'. In every submenu 'esc' closes
@@ -222,21 +229,21 @@ enum DefaultConfig {
         period = 'mode move'
         comma = 'mode go'
         slash = 'mode layout'
-        # '|' and '~' are shift-backslash and shift-backtick (one key on some keyboards).
-        shift-backslash = 'mode link'
+        # '~' is shift-backtick (one key with '|' on some keyboards).
         shift-backtick = 'mode launch'
         semicolon = 'mode config'
 
-        # Projects by first letter; arrows cycle.
+        # Like the workspaces after the leader: a project's key switches to it, space twice the last project,
+        # '.' moves the window to a project, ',' goes there with it; arrows cycle.
         [mode.project]
         label = 'Project'
 
         [mode.project.binding]
-        p = 'project p'
-        b = 'project bil'
-        i = 'project iam'
-        g = 'project gc'
+        '{project}' = 'project {project}'
         n = { run = 'project --none', label = 'no project' }
+        space = { run = 'project-back-and-forth', label = 'last project' }
+        period = 'mode link'
+        comma = 'mode link-go'
         right = { run = 'project next', repeat = true }
         down = { run = 'project next', repeat = true }
         left = { run = 'project prev', repeat = true }
@@ -274,15 +281,20 @@ enum DefaultConfig {
 
         # Link the focused window by hand.
         [mode.link]
-        label = 'Link window'
+        label = 'Move'
 
         [mode.link.binding]
-        p = 'link p'
-        b = 'link bil'
-        i = 'link iam'
-        g = 'link gc'
+        '{project}' = 'link {project}'
         l = { run = 'link --active', label = 'link to the active project' }
         n = 'unlink'
+
+        # Link the focused window to a project and switch to it with the window.
+        [mode.link-go]
+        label = 'Go with window'
+
+        [mode.link-go.binding]
+        '{project}' = 'link --follow {project}'
+        n = { run = 'unlink --follow', label = 'unlink, no project' }
 
         # Launch, or focus, the active project's window of an app: the key is the app's workspace.
         [mode.launch]

@@ -39,7 +39,7 @@ public enum CLIRequest: Equatable, Sendable {
                   move-workspace-to-display next|prev,
                   focus-display next|prev, focus next|prev, move next|prev,
                   layout tiles|maximized|toggle|toggle-orientation, resize +N|-N, balance,
-                  link <project>|--active, unlink, float, reveal, launch <app>, mode <name>,
+                  link [--follow] <project>|--active, unlink [--follow], float, reveal, launch <app>, mode <name>,
                   reload-config, exec <shell command>
         """
 

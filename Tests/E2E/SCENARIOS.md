@@ -118,6 +118,7 @@ The runner adds `manage = false` apps for the user's other running apps after `[
 
 ```toml
 gap = 0
+accordion-padding = 0
 
 [workspaces]
 w = 'main'
@@ -471,6 +472,10 @@ re-split. Close the middle one → the rest fill the space.
 
 **F12 Initial layout from config.** Change `c = 'main'` to `[workspaces.c] display = 'main'` + `layout = 'tiles'`, save:
 a project that never set `c` gets tiles; one that did keeps its runtime choice.
+
+**F13 Accordion.** With `accordion-padding = 30` and three windows on a maximized `w`, the focused one is
+inset 30 pt from each side that has windows before or after it, and the others fill the rest of the area, so
+their edges show. `focus next` slides the accordion; the first and last windows have no strip on their open side.
 
 ---
 

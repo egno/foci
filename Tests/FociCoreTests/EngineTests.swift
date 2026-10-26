@@ -138,6 +138,22 @@ struct EngineTests {
         #expect(h.visible(1))
     }
 
+    @Test func linkWithFollowSwitchesToTheProjectWithTheWindow() {
+        let h = Harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.engine.run("workspace w; project bil")
+        h.ws.focused = WindowID(1)
+        h.engine.refresh()
+
+        h.engine.run("link --follow iam")
+        #expect(h.record(1)?.owner == "iam")
+        #expect(h.engine.activeProject == "iam")
+        #expect(h.visible(1))
+        #expect(!h.visible(2))
+        #expect(h.ws.focused == WindowID(1))
+    }
+
     @Test func manualUnlinkWinsOverTitleRules() {
         let h = Harness()
         h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
@@ -298,6 +314,22 @@ struct EngineTests {
         #expect(h.engine.focusedOutsider == nil)  // no project, unlinked window: nothing to point out
         h.ws.focused = WindowID(1)
         #expect(h.engine.focusedOutsider?.owner == "bil")  // another project's, before Foci follows it
+    }
+
+    @Test func unlinkWithFollowSwitchesToNoProject() {
+        let h = Harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.engine.run("workspace w; project bil")
+        h.ws.focused = WindowID(1)
+        h.engine.refresh()
+
+        h.engine.run("unlink --follow")
+        #expect(h.record(1)?.owner == nil)
+        #expect(h.engine.activeProject == nil)
+        #expect(h.visible(1))
+        #expect(!h.visible(2))
+        #expect(h.ws.focused == WindowID(1))
     }
 
     @Test func backAndForthToARemovedProjectFails() {
@@ -580,5 +612,57 @@ struct TargetWindowTests {
         #expect(h.ws.frame(1) == Display.left.visibleFrame)
         #expect(h.visible(2))
         #expect(h.ws.frame(2) == Display.right.visibleFrame)
+    }
+}
+
+@MainActor
+struct AccordionTests {
+    func harness(padding: Double = 30) -> Harness {
+        var c = Config.sample
+        c.accordionPadding = padding
+        let h = Harness(config: c)
+        for id in UInt32(1)...3 { h.ws.open(id, bundle: "com.google.Chrome", title: "bil - Google Chrome") }
+        h.engine.run("workspace w; project bil")
+        return h
+    }
+
+    @Test func windowsBehindTheFocusedOneShowAtItsSides() {
+        let h = harness()
+        let a = Display.left.visibleFrame
+        h.ws.focused = WindowID(2)
+        h.engine.refresh()
+        #expect(h.ws.frame(1) == Rect(x: a.x, y: a.y, width: a.width - 30, height: a.height))
+        #expect(h.ws.frame(2) == Rect(x: a.x + 30, y: a.y, width: a.width - 60, height: a.height))
+        #expect(h.ws.frame(3) == Rect(x: a.x + 30, y: a.y, width: a.width - 30, height: a.height))
+
+        // The first window has nothing before it: no strip on the left.
+        h.engine.run("focus prev")
+        #expect(h.ws.focused == WindowID(1))
+        #expect(h.ws.frame(1) == Rect(x: a.x, y: a.y, width: a.width - 30, height: a.height))
+        #expect(h.ws.frame(2) == Rect(x: a.x + 30, y: a.y, width: a.width - 30, height: a.height))
+    }
+
+    @Test func oneWindowAndZeroPaddingFillTheDisplay() {
+        let h = harness(padding: 0)
+        #expect(h.ws.frame(2) == Display.left.visibleFrame)
+        let one = Harness(config: { var c = Config.sample; c.accordionPadding = 30; return c }())
+        one.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        one.engine.run("workspace w; project bil")
+        #expect(one.ws.frame(1) == Display.left.visibleFrame)
+    }
+
+    @Test func portraitDisplaysStackTheAccordion() {
+        let tall = Display(
+            id: DisplayID(1), name: "Portrait", frame: Rect(x: 0, y: 0, width: 1080, height: 1920),
+            visibleFrame: Rect(x: 0, y: 25, width: 1080, height: 1895), isMain: true)
+        var c = Config.sample
+        c.accordionPadding = 30
+        let h = Harness(config: c, ws: FakeWindowSystem(displays: [tall]))
+        for id in UInt32(1)...2 { h.ws.open(id, bundle: "com.google.Chrome", title: "bil - Google Chrome") }
+        h.engine.run("workspace w; project bil")
+        h.ws.focused = WindowID(1)
+        h.engine.refresh()
+        #expect(h.ws.frame(1) == Rect(x: 0, y: 25, width: 1080, height: 1865))
+        #expect(h.ws.frame(2) == Rect(x: 0, y: 55, width: 1080, height: 1865))
     }
 }

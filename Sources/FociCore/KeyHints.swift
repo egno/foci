@@ -20,7 +20,8 @@ extension Config {
     /// (`esc`, `left`), each alphabetical; plain key before modified.
     /// `bindings` replaces the mode's own, e.g. to add built-in keys.
     /// The leader keys show as one `leader` row when they all run the same script, and keys that do the same
-    /// with their own key (`'{workspace}' = 'workspace {workspace}'`) as one `a-z` row.
+    /// with their own key (`'{workspace}' = 'workspace {workspace}'`) as one `a-z` row, and the keys of a
+    /// `'{project}'` binding as one `b g i p` row.
     public func keyHints(for mode: String, bindings: [KeyCombo: String]? = nil) -> [KeyHint] {
         var labels = bindingLabels[mode] ?? [:]
         var bindings = bindings ?? modes[mode] ?? [:]
@@ -36,19 +37,25 @@ extension Config {
             }
             return KeyHint(combo: combo, label: labels[combo] ?? describe(script, commands), isGroup: false)
         }
-        return Self.collapseRanges(hints).sorted {
+        return Self.collapseRanges(hints, projectKeys: projectKeys[mode] ?? [:]).sorted {
             ($0.isGroup ? 1 : 0, $0.combo.key.count == 1 ? 0 : 1, $0.combo.key, $0.combo.modifiers.count, $0.combo.description)
                 < ($1.isGroup ? 1 : 0, $1.combo.key.count == 1 ? 0 : 1, $1.combo.key, $1.combo.modifiers.count, $1.combo.description)
         }
     }
 
     /// Three or more one-character keys whose labels differ only in the key itself (`workspace a`,
-    /// `workspace b`, ...) become one row labelled without the key: `a-z → workspace`.
-    static func collapseRanges(_ hints: [KeyHint]) -> [KeyHint] {
+    /// `workspace b`, ...) become one row labelled without the key: `a-z → workspace`. Two or more keys of one
+    /// `{project}` binding (`projectKeys`: key → the binding without the project) become `b g i p → project`.
+    static func collapseRanges(_ hints: [KeyHint], projectKeys: [KeyCombo: String] = [:]) -> [KeyHint] {
         struct Pattern: Hashable { let modifiers: Set<Modifier>; let label: String }
         var groups: [Pattern: [KeyHint]] = [:]
+        var projects: [Pattern: [KeyHint]] = [:]
         var rest: [KeyHint] = []
         for h in hints {
+            if !h.isGroup, let label = projectKeys[h.combo] {
+                projects[Pattern(modifiers: h.combo.modifiers, label: label), default: []].append(h)
+                continue
+            }
             let key = h.combo.key
             let pattern = h.label.replacingOccurrences(
                 of: "(?<=^|[\\s;])\(NSRegularExpression.escapedPattern(for: key))(?=$|[\\s;])", with: "\u{0}",
@@ -58,6 +65,11 @@ extension Config {
             } else {
                 rest.append(h)
             }
+        }
+        for (pattern, members) in projects {
+            guard members.count >= 2 else { rest += members; continue }
+            rest.append(KeyHint(combo: members.min { $0.combo.key < $1.combo.key }!.combo, label: pattern.label,
+                                isGroup: false, range: ranges(members.map(\.combo.key).sorted())))
         }
         for (pattern, members) in groups {
             guard members.count >= 3 else { rest += members; continue }

@@ -94,6 +94,11 @@ public final class Engine {
             ?? config.workspaceLayouts[workspace] ?? config.defaultLayout
     }
 
+    /// The window in front of a workspace's accordion: the one last focused there under the active project.
+    public func front(of workspace: String) -> WindowID? {
+        state.lastFocused[State.focusKey(project: state.activeProject, workspace: workspace)]
+    }
+
     /// Visible windows of a workspace, in workspace order.
     public func visibleWindows(in workspace: String) -> [WindowID] {
         state.windows
@@ -511,19 +516,27 @@ public final class Engine {
             }
             reveal(id)
 
-        case .link(let name):
+        case .link(let name, let follow):
             guard let id = focusedManagedWindow() else { return "no focused window" }
             guard let p = name ?? state.activeProject else { return "no active project" }
             guard config.project(p) != nil else { return "unknown project '\(p)'" }
             state.windows[id]?.owner = p
             state.windows[id]?.manual = true
-            apply()
-            if let r = state.windows[id], !isVisible(r) { focusBest(in: focusedWorkspace) }
+            if follow {
+                reveal(id)
+            } else {
+                apply()
+                if let r = state.windows[id], !isVisible(r) { focusBest(in: focusedWorkspace) }
+            }
 
-        case .unlink:
+        case .unlink(let follow):
             guard let id = focusedManagedWindow() else { return "no focused window" }
             state.windows[id]?.owner = nil
             state.windows[id]?.manual = true
+            if follow {
+                setProject(nil)
+                reveal(id)
+            }
 
         case .toggleFloat:
             guard let id = focusedManagedWindow(), var r = state.windows[id] else { return "no focused window" }
@@ -767,10 +780,10 @@ public final class Engine {
 
     /// Moves every window to its planned frame. Shown windows first to reduce flicker.
     private func apply() {
-        let planner = Planner(displays: displays, gap: config.gap)
+        let planner = Planner(displays: displays, gap: config.gap, accordionPadding: config.accordionPadding)
         let targets = planner.plan(
             records: state.windows, facts: facts, isVisible: isVisible, displayOf: display(of:),
-            layoutOf: layout(of:))
+            layoutOf: layout(of:), frontOf: front(of:))
         for t in targets {
             guard let f = facts[t.id], !f.frame.isClose(to: t.frame) else { continue }
             windowSystem.setFrame(t.id, t.frame)
@@ -786,10 +799,10 @@ public final class Engine {
     /// Puts every managed window back on screen. Called on quit so nothing stays parked.
     public func restoreAll() {
         guard !displays.isEmpty else { return }
-        let planner = Planner(displays: displays, gap: config.gap)
+        let planner = Planner(displays: displays, gap: config.gap, accordionPadding: config.accordionPadding)
         let targets = planner.plan(
             records: state.windows, facts: facts, isVisible: { _ in true }, displayOf: display(of:),
-            layoutOf: layout(of:))
+            layoutOf: layout(of:), frontOf: front(of:))
         for t in targets {
             guard let f = facts[t.id], !f.frame.isClose(to: t.frame) else { continue }
             windowSystem.setFrame(t.id, t.frame)

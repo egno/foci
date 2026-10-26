@@ -43,7 +43,7 @@ public final class TOMLConfigSource: ConfigSource {
         var c = Config()
         try checkKeys(
             root,
-            ["start-at-login", "gap", "default-layout", "workspaces", "apps", "browser", "projects", "leader", "mode",
+            ["start-at-login", "gap", "accordion-padding", "default-layout", "workspaces", "apps", "browser", "projects", "leader", "mode",
              "key-hints", "key-hints-delay", "leader-timeout", "repeat-timeout", "menu-bar-style"],
             at: "top level")
         if let v = root["start-at-login"] { c.startAtLogin = try bool(v, "start-at-login") }
@@ -73,6 +73,7 @@ public final class TOMLConfigSource: ConfigSource {
 
         if let b = root["browser"] { c.browser = try string(b, "browser") }
         if let gap = root["gap"] { c.gap = try number(gap, "gap") }
+        if let p = root["accordion-padding"] { c.accordionPadding = max(try number(p, "accordion-padding"), 0) }
         if let l = root["default-layout"] { c.defaultLayout.kind = try layoutKind(l, "default-layout") }
 
         if let ws = root["workspaces"] {
@@ -130,14 +131,23 @@ public final class TOMLConfigSource: ConfigSource {
                 var bindings: [KeyCombo: String] = [:]
                 var labels: [KeyCombo: String] = [:]
                 var repeats: Set<KeyCombo> = []
+                var projectKeys: [KeyCombo: String] = [:]
                 if let b = mt["binding"] {
                     let bt = try table(b, "mode.\(name).binding")
-                    // Templates last: a key bound by name wins over the one '{workspace}' generates.
-                    for key in bt.keys.sorted(by: { !$0.contains("{workspace}") && $1.contains("{workspace}") }) {
+                    // Templates last: a key bound by name wins over the one '{workspace}' generates, and makes
+                    // the one '{project}' generates an error.
+                    func isTemplate(_ k: String) -> Bool { k.contains("{workspace}") || k.contains("{project}") }
+                    for key in bt.keys.sorted(by: { !isTemplate($0) && isTemplate($1) }) {
                         let at = "mode.\(name).binding.\(key)"
-                        let isTemplate = key.contains("{workspace}")
-                        // '{workspace}' stands for every letter a-z and any other one-character workspace in [workspaces].
-                        let names = isTemplate ? Self.workspaceKeys(c) : [""]
+                        let placeholder = key.contains("{workspace}") ? "{workspace}" : key.contains("{project}") ? "{project}" : nil
+                        // '{workspace}' stands for every letter a-z and any other one-character workspace in [workspaces];
+                        // '{project}' for each project's key in the key and its name in the script and label.
+                        let names: [(key: String, value: String)] =
+                            switch placeholder {
+                            case "{workspace}": Self.workspaceKeys(c).map { ($0, $0) }
+                            case "{project}": c.projects.map { ($0.key, $0.name) }
+                            default: [("", "")]
+                            }
                         var v = bt[key]!
                         var label: String?
                         var isRepeat = false
@@ -157,9 +167,11 @@ public final class TOMLConfigSource: ConfigSource {
                         } else {
                             throw ConfigError("\(at): expected a string, an array of strings or { run, label, repeat }")
                         }
-                        for ws in names {
-                            func fill(_ s: String) -> String { isTemplate ? s.replacingOccurrences(of: "{workspace}", with: ws) : s }
-                            guard let parsed = KeyCombo(parsing: fill(key)) else {
+                        for n in names {
+                            func fill(_ s: String, _ v: String = n.value) -> String {
+                                placeholder.map { s.replacingOccurrences(of: $0, with: v) } ?? s
+                            }
+                            guard let parsed = KeyCombo(parsing: fill(key, n.key)) else {
                                 throw ConfigError("mode.\(name).binding: bad key '\(key)'")
                             }
                             let combos = parsed == .leader ? c.leaderKeys : [parsed]
@@ -170,14 +182,23 @@ public final class TOMLConfigSource: ConfigSource {
                                 throw ConfigError("\(at): \(error)")
                             }
                             for combo in combos {
-                                if bindings[combo] != nil {
-                                    if isTemplate { continue }
+                                if let taken = bindings[combo] {
+                                    if placeholder == "{project}" {
+                                        throw ConfigError(
+                                            "mode.\(name).binding: key '\(combo)' of project '\(n.value)' already runs '\(taken)': "
+                                                + "set key = '...' in its [[projects]]")
+                                    }
+                                    if placeholder != nil { continue }
                                     // 'leader' and one of its keys in the same mode.
                                     throw ConfigError("mode.\(name).binding: '\(combo)' bound twice")
                                 }
                                 bindings[combo] = script
                                 if let label { labels[combo] = fill(label) }
                                 if isRepeat { repeats.insert(combo) }
+                                if placeholder == "{project}" {
+                                    projectKeys[combo] = fill(label ?? template, "")
+                                        .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+                                }
                             }
                         }
                     }
@@ -185,6 +206,7 @@ public final class TOMLConfigSource: ConfigSource {
                 c.modes[name] = bindings
                 if !labels.isEmpty { c.bindingLabels[name] = labels }
                 if !repeats.isEmpty { c.repeatKeys[name] = repeats }
+                if !projectKeys.isEmpty { c.projectKeys[name] = projectKeys }
             }
         }
         if c.modes["main"] == nil { c.modes["main"] = [:] }
@@ -227,10 +249,11 @@ public final class TOMLConfigSource: ConfigSource {
     }
 
     private static func parseProject(_ t: TOMLTable) throws -> ProjectDef {
-        try checkKeys(t, ["name", "apps"], at: "projects")
+        try checkKeys(t, ["name", "apps", "key"], at: "projects")
         guard let name = t["name"]?.string else { throw ConfigError("every [[projects]] needs a name") }
         let at = "project '\(name)'"
-        var p = ProjectDef(name: name)
+        var p = ProjectDef(name: name, key: try t["key"].map { try string($0, "\(at).key") })
+        guard KeyCombo(parsing: p.key) != nil else { throw ConfigError("\(at): bad key '\(p.key)'") }
         if let apps = t["apps"] {
             guard let arr = apps.array else { throw ConfigError("\(at): 'apps' must be an array") }
             for item in arr {

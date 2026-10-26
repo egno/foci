@@ -26,9 +26,10 @@ public enum Command: Equatable, Sendable {
     case balance
     /// Show the window's project and workspace and focus it (for windows picked in the menu).
     case reveal
-    /// Link the focused window to a project; nil = the active project.
-    case link(String?)
-    case unlink
+    /// Link the focused window to a project; nil = the active project. `follow`: switch to that project too.
+    case link(String?, follow: Bool)
+    /// `follow`: switch to no project too, so the window stays in view.
+    case unlink(follow: Bool)
     case toggleFloat
     /// Focus the active project's window of the app, or launch it.
     case launch(app: String)
@@ -124,9 +125,15 @@ public enum Command: Equatable, Sendable {
             return .resize(n)
         case "balance": try none(); return .balance
         case "link":
-            let p = try one()
-            return .link(p == "--active" ? nil : p)
-        case "unlink": try none(); return .unlink
+            let follow = args.contains("--follow")
+            let rest = args.filter { $0 != "--follow" }
+            guard rest.count == 1 else { throw ParseError(description: "usage: link [--follow] <project>|--active") }
+            return .link(rest[0] == "--active" ? nil : rest[0], follow: follow)
+        case "unlink":
+            guard args.allSatisfy({ $0 == "--follow" }), args.count <= 1 else {
+                throw ParseError(description: "usage: unlink [--follow]")
+            }
+            return .unlink(follow: !args.isEmpty)
         case "reveal": try none(); return .reveal
         case "float": try none(); return .toggleFloat
         case "launch": return .launch(app: try one())

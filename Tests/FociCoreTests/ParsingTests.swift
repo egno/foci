@@ -16,7 +16,12 @@ struct ParsingTests {
         #expect(try Command.parse("project --none") == .project(.none))
         #expect(try Command.parse("project next") == .project(.cycle(.next)))
         #expect(try Command.parse("project bil") == .project(.named("bil")))
-        #expect(try Command.parse("link --active") == .link(nil))
+        #expect(try Command.parse("link --active") == .link(nil, follow: false))
+        #expect(try Command.parse("link --follow bil") == .link("bil", follow: true))
+        #expect(throws: Command.ParseError.self) { try Command.parse("link --follow") }
+        #expect(try Command.parse("unlink") == .unlink(follow: false))
+        #expect(try Command.parse("unlink --follow") == .unlink(follow: true))
+        #expect(throws: Command.ParseError.self) { try Command.parse("unlink bil") }
         #expect(try Command.parse("move-to-workspace --follow x") == .moveToWorkspace("x", follow: true))
     }
 

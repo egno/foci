@@ -75,6 +75,7 @@ extension Config {
     /// Chrome windows are linked by title, kitty instances by args. Slack is unlinked on workspace s.
     static var sample: Config {
         var c = Config()
+        c.accordionPadding = 0  // maximized means full size; AccordionTests set it
         c.workspaces = ["w": .main, "c": .main, "x": .secondary, "s": .secondary]
         var chrome = AppDef(id: "chrome", bundleID: "com.google.Chrome")
         chrome.title = "^{project} - Google Chrome$"

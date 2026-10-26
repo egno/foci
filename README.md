@@ -10,8 +10,9 @@ A small macOS window manager for working on one project at a time, keyboard firs
   shows only the active project's browser windows (plus unlinked ones). Displays are followed as they come and
   go: a reconnected display shows its last workspace again, and the focused workspace follows its windows off a
   disconnected one.
-- **Maximized by default, tiles on demand.** Each workspace is `maximized` (windows fill the display, `focus next|prev`
-  cycles) or `tiles` (side by side on landscape, stacked on portrait; `move`, `resize`, `balance`). The layout is
+- **Maximized by default, tiles on demand.** Each workspace is `maximized` (windows fill the display as an
+  accordion, like AeroSpace's: the edges of the windows behind the focused one show at its sides,
+  `accordion-padding` points, 30; `focus next|prev` cycles) or `tiles` (side by side on landscape, stacked on portrait; `move`, `resize`, `balance`). The layout is
   remembered per project and workspace. `float` takes a window out of the layout.
 - **Linking.** Rules over bundle ID, process arguments (`--user-data-dir`, `--instance-group`) and window title
   link windows automatically and re-link them after app restarts. `link <project>` / `unlink` override the rules
@@ -30,16 +31,16 @@ A small macOS window manager for working on one project at a time, keyboard firs
   | arrows | focus |
   | `enter` | toggle layout |
   | `tab` | next display |
-  | `space` | +project (letters, arrows cycle, `n` no project) |
+  | `space` | +project: the same keys for projects (a project's key, `space` last project, `.` move window, `,` go with window, `n` no project, arrows cycle) |
   | `.` | +move (arrows, `tab` window to next display, `space` workspace to next display) |
   | `,` | +go with window |
   | `/` | +layout |
-  | `\|` | +link (`l` to the active project, `n` unlink) |
   | `~` | +launch: launch or focus the active project's window of an app, keyed by its workspace |
   | `;` | +config (`r` reload, `e` edit) |
 
-  In binding keys `leader` stands for all the leader keys and `{workspace}` for every letter
-  (`'{workspace}' = 'workspace {workspace}'`). Modes other than `main` are one-shot: a key acts and Foci returns
+  In binding keys `leader` stands for all the leader keys, `{workspace}` for every letter
+  (`'{workspace}' = 'workspace {workspace}'`) and `{project}` for each project's key: the first letter of its
+  name, or `key = '...'` in its `[[projects]]` (`'{project}' = 'project {project}'`). Modes other than `main` are one-shot: a key acts and Foci returns
   to `main`, unless the key enters another mode or the mode is `sticky = true`. In every submenu `esc` closes and
   `backspace` goes up one level. A submenu also closes after `leader-timeout` ms (5000), on a click, and on a key
   it doesn't bind (the key still reaches the app).

@@ -178,6 +178,7 @@ FIXTURE_EXPECT = {
 
 CONFIG_TEMPLATE = r"""
 gap = 0
+accordion-padding = 0  # maximized = full size; see SCENARIOS.md F13
 
 [workspaces]
 w = 'main'

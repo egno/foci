@@ -6,6 +6,8 @@ public struct Config: Equatable, Sendable {
     public var menuBarStyle: MenuBarStyle = .i3
     /// Gap in points around and between windows.
     public var gap: Double = 0
+    /// Maximized windows as an accordion: points of the windows behind the focused one shown at its sides.
+    public var accordionPadding: Double = 30
     /// Workspace name → display spec, see `DisplaySpec`. Every workspace lives on exactly one display.
     public var workspaces: [String: DisplaySpec] = [:]
     /// Initial layout per workspace; `defaultLayout` for the rest. `layout` commands override both at runtime.
@@ -24,6 +26,9 @@ public struct Config: Equatable, Sendable {
     public var bindingLabels: [String: [KeyCombo: String]] = [:]
     /// Mode name → label of the group, shown as `+label` for keys that enter the mode.
     public var modeLabels: [String: String] = [:]
+    /// Mode name → key → what the `{project}` binding it came from does without the project (`project`,
+    /// `link --follow`): key hints show those keys as one row.
+    public var projectKeys: [String: [KeyCombo: String]] = [:]
     /// Modes that stay active after a key; any other mode but `main` returns to `main` after one key.
     public var stickyModes: Set<String> = []
     /// Mode name → keys that repeat, like Emacs's repeat-mode: after one of them acts, the mode stays open with
@@ -169,9 +174,11 @@ public struct ProjectAppRef: Equatable, Sendable {
 public struct ProjectDef: Equatable, Sendable {
     public var name: String
     public var apps: [ProjectAppRef]
+    /// The key `{project}` in a binding stands for; the first letter of the name unless set.
+    public var key: String
 
-    public init(name: String, apps: [ProjectAppRef] = []) {
-        self.name = name; self.apps = apps
+    public init(name: String, apps: [ProjectAppRef] = [], key: String? = nil) {
+        self.name = name; self.apps = apps; self.key = key ?? String(name.prefix(1)).lowercased()
     }
 
     public func ref(_ app: String) -> ProjectAppRef? { apps.first { $0.app == app } }

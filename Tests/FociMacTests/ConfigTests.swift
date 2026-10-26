@@ -153,6 +153,43 @@ struct ConfigTests {
         #expect(c.bindingLabels["control"]?[k("shift-x")] == "go to x")
     }
 
+    @Test func projectTemplateBindsEachProjectKey() throws {
+        let c = try TOMLConfigSource.parse(
+            """
+            [[projects]]
+            name = 'bil'
+            [[projects]]
+            name = 'iam'
+            [[projects]]
+            name = 'billing'
+            key = 'g'
+            [mode.project.binding]
+            '{project}' = 'project {project}'
+            n = 'project --none'
+            [mode.link-go.binding]
+            '{project}' = { run = 'link --follow {project}', label = 'go with window to {project}' }
+            """)
+        func k(_ s: String) -> KeyCombo { KeyCombo(parsing: s)! }
+        #expect(c.modes["project"] == [k("b"): "project bil", k("i"): "project iam", k("g"): "project billing", k("n"): "project --none"])
+        #expect(c.modes["link-go"]?[k("g")] == "link --follow billing")
+        #expect(c.bindingLabels["link-go"]?[k("i")] == "go with window to iam")
+        #expect(c.keyHints(for: "project").map { "\($0.range ?? $0.combo.description) \($0.label)" }
+            == ["b g i project", "n project --none"])
+        #expect(c.keyHints(for: "link-go").map { "\($0.range ?? $0.combo.description) \($0.label)" }
+            == ["b g i go with window to"])
+    }
+
+    @Test func projectKeysMustNotClash() {
+        let projects = "[[projects]]\nname = 'bil'\n[[projects]]\nname = 'nova'\n"
+        #expect(throws: ConfigError.self) {
+            try TOMLConfigSource.parse(projects + "[mode.p.binding]\n'{project}' = 'project {project}'\nn = 'project --none'")
+        }
+        #expect(throws: ConfigError.self) {
+            try TOMLConfigSource.parse(projects + "[[projects]]\nname = 'bob'\n[mode.p.binding]\n'{project}' = 'project {project}'")
+        }
+        #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("[[projects]]\nname = 'x'\nkey = ''") }
+    }
+
     @Test func repeatKeysAndTimeouts() throws {
         let c = try TOMLConfigSource.parse(
             """

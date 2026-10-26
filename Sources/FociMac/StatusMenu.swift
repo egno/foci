@@ -103,6 +103,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(command("No Project", "project --none", checked: engine.activeProject == nil))
         menu.addItem(.separator())
 
+        // The focused window, as the label marks it when it is outside the project.
+        let windows = engine.windowList()
+        if let id = engine.focusedRecord?.id, let w = windows.first(where: { $0.id == id }) {
+            menu.addItem(header("Window"))
+            menu.addItem(windowItem(w, engine: engine, projects: projects, markUnlinked: true))
+            menu.addItem(.separator())
+        }
+
         // One row per display, the workspaces in a submenu: every letter can be a workspace, too many rows for a
         // laptop screen.
         let displays = sortedDisplays(engine)
@@ -141,7 +149,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(layoutItem)
         menu.addItem(.separator())
 
-        let windows = engine.windowList()
         let windowsItem = NSMenuItem(title: "Windows (\(windows.count))", action: nil, keyEquivalent: "")
         let windowsMenu = NSMenu()
         windowsMenu.autoenablesItems = false
@@ -159,11 +166,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
     }
 
-    /// "Chrome — Inbox   [bil]" with a submenu of actions on that window.
-    private func windowItem(_ w: Engine.WindowInfo, engine: Engine, projects: [String]) -> NSMenuItem {
+    /// "Chrome — Inbox   [bil]" with a submenu of actions on that window; `markUnlinked`: "[⊘]" if unlinked.
+    private func windowItem(
+        _ w: Engine.WindowInfo, engine: Engine, projects: [String], markUnlinked: Bool = false
+    ) -> NSMenuItem {
         var title = w.facts.title.isEmpty ? w.facts.appName : "\(w.facts.appName) — \(w.facts.title)"
         if title.count > 60 { title = String(title.prefix(59)) + "…" }
-        let tag = [w.record.owner?.uppercased(), w.record.floating ? "float" : nil].compactMap { $0 }.joined(separator: ", ")
+        let owner = w.record.owner?.uppercased() ?? (markUnlinked ? "⊘" : nil)
+        let tag = [owner, w.record.floating ? "float" : nil].compactMap { $0 }.joined(separator: ", ")
         if !tag.isEmpty { title += "   [\(tag)]" }
 
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
