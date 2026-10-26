@@ -137,10 +137,23 @@ public struct StatusDTO: Equatable, Codable, Sendable {
         public let main: Bool
         public let workspace: String?
     }
+    public struct FocusedWindowDTO: Equatable, Codable, Sendable {
+        public let id: UInt32
+        public let project: String?
+
+        // `"project": null` for an unlinked window rather than no key.
+        public func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(id, forKey: .id)
+            try c.encode(project, forKey: .project)
+        }
+    }
     public let project: String?
     public let mode: String
     public let focusedWorkspace: String
     public let displays: [DisplayDTO]
+    /// The focused window if Foci manages it; its project differs from `project` when it is unlinked.
+    public let focusedWindow: FocusedWindowDTO?
 }
 
 public struct WindowDTO: Equatable, Codable, Sendable {
@@ -244,7 +257,8 @@ public struct CLIHandler {
                 .map {
                     StatusDTO.DisplayDTO(
                         id: $0.id.raw, name: $0.name, main: $0.isMain, workspace: engine.state.activeWorkspace[$0.id])
-                })
+                },
+            focusedWindow: engine.focusedRecord.map { StatusDTO.FocusedWindowDTO(id: $0.id.raw, project: $0.record.owner) })
     }
 
     func windows(_ f: CLIRequest.WindowFilter) -> [WindowDTO] {

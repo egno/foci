@@ -283,6 +283,23 @@ struct EngineTests {
         #expect(h2.record(1)?.owner == nil)
     }
 
+    @Test func focusedOutsiderIsAWindowOutsideTheActiveProject() {
+        let h = Harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "Personal")
+        h.ws.open(3, bundle: "com.apple.finder")
+        h.engine.run("workspace w; project bil")
+        #expect(h.engine.focusedOutsider == nil)  // nothing focused
+        h.ws.focused = WindowID(1)
+        #expect(h.engine.focusedOutsider == nil)  // in the project
+        h.ws.focused = WindowID(2)
+        #expect(h.engine.focusedOutsider?.owner == .some(nil))  // unlinked
+        h.engine.run("project --none")
+        #expect(h.engine.focusedOutsider == nil)  // no project, unlinked window: nothing to point out
+        h.ws.focused = WindowID(1)
+        #expect(h.engine.focusedOutsider?.owner == "bil")  // another project's, before Foci follows it
+    }
+
     @Test func backAndForthToARemovedProjectFails() {
         let h = Harness()
         h.engine.run("project bil; project iam")

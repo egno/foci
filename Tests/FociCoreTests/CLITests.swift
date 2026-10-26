@@ -73,6 +73,9 @@ struct CLIHandlerTests {
         #expect(s.project == "bil")
         #expect(s.focusedWorkspace == "w")
         #expect(s.displays.map(\.workspace) == ["w", "s"])
+        #expect(s.focusedWindow == .init(id: 1, project: "bil"))
+        h.ws.focused = WindowID(2)
+        #expect(CLIHandler(engine: h.engine).status().focusedWindow == .init(id: 2, project: nil))
 
         let out = CLIHandler(engine: h.engine).handle(.listProjects(json: true)).stdout
         let projects = try JSONDecoder().decode([ProjectDTO].self, from: Data(out.utf8))

@@ -17,6 +17,8 @@ enum MenuBarLabel {
         /// nil in `main`.
         var mode: String?
         var project: String?
+        /// The focused window is outside the project: its project, `.some(nil)` if unlinked. nil = in the project.
+        var outside: String??
         /// Per display, main first.
         var displays: [[Workspace]]
         var warning: Bool
@@ -32,8 +34,8 @@ enum MenuBarLabel {
             displays[displays.count - 1].append(Workspace(name: ws.name, focused: ws.focused, shown: ws.shown))
         }
         return Content(
-            mode: engine.mode == "main" ? nil : engine.mode, project: engine.activeProject, displays: displays,
-            warning: warning)
+            mode: engine.mode == "main" ? nil : engine.mode, project: engine.activeProject,
+            outside: engine.focusedOutsider.map(\.owner), displays: displays, warning: warning)
     }
 
     static func image(_ content: Content) -> NSImage? {
@@ -71,6 +73,17 @@ private struct LabelView: View {
                 .font(Self.font)
                 .frame(height: Self.size)
                 .opacity(content.project == nil ? 0.5 : 1)
+            // The focused window's project when it isn't this one, dimmed: ⊘ for an unlinked window.
+            if let outside = content.outside {
+                Group {
+                    if let other = outside {
+                        Text(other.uppercased()).font(Self.font)
+                    } else {
+                        Image(systemName: "nosign").font(.system(size: 11, weight: .bold))
+                    }
+                }
+                .opacity(0.5)
+            }
             Text("›").font(Self.font).opacity(0.5).padding(.trailing, 2)
             ForEach(content.displays.indices, id: \.self) { d in
                 if d > 0 { Text("|").font(Self.font).opacity(0.5) }

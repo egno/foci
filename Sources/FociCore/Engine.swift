@@ -75,6 +75,19 @@ public final class Engine {
             && (r.owner == nil || r.owner == state.activeProject)
     }
 
+    /// The focused window, if Foci manages it.
+    public var focusedRecord: (id: WindowID, record: WindowRecord)? {
+        guard let id = windowSystem.focusedWindow(), let r = state.windows[id] else { return nil }
+        return (id, r)
+    }
+
+    /// The focused window when it is outside the active project: unlinked, or another project's for a moment
+    /// before Foci follows it. nil when it is in the active project (or both have none) or not managed.
+    public var focusedOutsider: WindowRecord? {
+        guard let r = focusedRecord?.record, r.owner != state.activeProject else { return nil }
+        return r
+    }
+
     /// The workspace's layout under the active project.
     public func layout(of workspace: String) -> Layout {
         state.layouts[State.focusKey(project: state.activeProject, workspace: workspace)]

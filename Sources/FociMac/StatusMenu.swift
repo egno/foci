@@ -52,6 +52,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     /// `BIL · [w] x`: the workspace shown on each display (main first), the focused one bold in brackets.
+    /// The focused window's project follows the active one, dimmed, when they differ: `BIL ⊘ · …` if unlinked.
     private func textTitle(_ engine: Engine) -> NSAttributedString {
         let size = NSFont.systemFontSize
         let regular: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: size, weight: .medium)]
@@ -60,7 +61,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             $1
         }
 
-        let title = NSMutableAttributedString(string: (engine.activeProject?.uppercased() ?? "–") + " ·", attributes: regular)
+        let title = NSMutableAttributedString(string: engine.activeProject?.uppercased() ?? "–", attributes: regular)
+        if let outside = engine.focusedOutsider {
+            title.append(NSAttributedString(string: " " + (outside.owner?.uppercased() ?? "⊘"), attributes: dimmed))
+        }
+        title.append(NSAttributedString(string: " ·", attributes: regular))
         for d in sortedDisplays(engine) {
             guard let ws = engine.state.activeWorkspace[d.id] else { continue }
             let isFocused = ws == engine.focusedWorkspace
