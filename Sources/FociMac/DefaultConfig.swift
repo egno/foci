@@ -21,7 +21,7 @@ enum DefaultConfig {
 
         gap = 0
 
-        # Maximized windows are an accordion: the focused one leaves this many points at each side, where the
+        # Maximized windows are an accordion: the focused one leaves this many points at its left and right, where the
         # edges of the windows behind it show. 0 = every window fills the display.
         accordion-padding = 30
 
@@ -181,6 +181,7 @@ enum DefaultConfig {
         #   move-to-display [--follow] next|prev   the focused window to the other display's workspace
         #   move-workspace-to-display next|prev    focus-display next|prev
         #   focus next|prev                    cycle windows of the focused workspace
+        #   focus-app next|prev                cycle the focused app's windows (active project, unlinked), any workspace
         #   move next|prev                     swap the focused window with its neighbour (tile order)
         #   layout tiles|maximized|toggle|toggle-orientation
         #   resize +N|-N (points)    balance
@@ -214,7 +215,7 @@ enum DefaultConfig {
 
         # Leader twice: the last workspace.
         leader = 'workspace-back-and-forth'
-        enter = 'layout toggle'
+        enter = { run = 'focus-app next', label = 'next window of the app', repeat = true }
         tab = 'focus-display next'
 
         # Window order is one row (tiles side by side) or one column (stacked/maximized). Letters are workspaces,
@@ -228,9 +229,8 @@ enum DefaultConfig {
 
         period = 'mode move'
         comma = 'mode go'
-        slash = 'mode layout'
-        # '~' is shift-backtick (one key with '|' on some keyboards).
-        shift-backtick = 'mode launch'
+        slash = 'mode launch'
+        quote = 'mode layout'
         semicolon = 'mode config'
 
         # Like the workspaces after the leader: a project's key switches to it, space twice the last project,
@@ -272,7 +272,7 @@ enum DefaultConfig {
         label = 'Layout'
 
         [mode.layout.binding]
-        e = 'layout toggle'
+        enter = 'layout toggle'
         t = 'layout tiles'
         m = 'layout maximized'
         o = 'layout toggle-orientation'

@@ -460,6 +460,18 @@ public final class Engine {
             let next = i.map { (($0 + (dir == .next ? 1 : -1)) + list.count) % list.count } ?? 0
             focus(list[next])
 
+        case .focusApp(let dir):
+            guard let id = windowSystem.focusedWindow(), let bundle = facts[id]?.bundleID else { return nil }
+            let list = state.windows
+                .filter {
+                    facts[$0.key]?.bundleID == bundle && facts[$0.key]?.isFrozen == false
+                        && ($0.value.owner == nil || $0.value.owner == state.activeProject)
+                }
+                .sorted { ($0.value.workspace, $0.value.seq) < ($1.value.workspace, $1.value.seq) }
+                .map(\.key)
+            guard list.count > 1, let i = list.firstIndex(of: id) else { return nil }
+            reveal(list[(i + (dir == .next ? 1 : -1) + list.count) % list.count])
+
         case .moveWindow(let dir):
             guard let id = focusedManagedWindow(), state.windows[id]?.floating == false else {
                 return "no focused tiled window"

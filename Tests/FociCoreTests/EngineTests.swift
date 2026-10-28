@@ -241,6 +241,30 @@ struct EngineTests {
         #expect(throws: Command.ParseError.self) { try Command.parse("move-to-display up") }
     }
 
+    @Test func focusAppCyclesTheAppsWindowsAcrossWorkspaces() {
+        let h = Harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "iam - Google Chrome")
+        h.ws.open(3, bundle: "com.google.Chrome", title: "Personal")
+        h.ws.open(4, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group bil")
+        h.engine.run("workspace w; project bil")
+        h.ws.focused = WindowID(3)
+        h.engine.run("move-to-workspace c")
+        h.ws.focused = WindowID(1)
+        h.engine.run("focus-app next")
+        #expect(h.ws.focused == WindowID(3))  // iam's window is skipped
+        #expect(h.engine.focusedWorkspace == "c")
+        #expect(h.visible(3))
+        h.engine.run("focus-app next")
+        #expect(h.ws.focused == WindowID(1))
+        #expect(h.engine.focusedWorkspace == "w")
+        h.engine.run("focus-app prev")
+        #expect(h.ws.focused == WindowID(3))
+        h.ws.focused = WindowID(4)
+        h.engine.run("focus-app next")
+        #expect(h.ws.focused == WindowID(4))
+    }
+
     @Test func moveWorkspaceToOtherDisplay() {
         let h = Harness()
         h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
@@ -651,7 +675,7 @@ struct AccordionTests {
         #expect(one.ws.frame(1) == Display.left.visibleFrame)
     }
 
-    @Test func portraitDisplaysStackTheAccordion() {
+    @Test func portraitDisplaysKeepTheAccordionLeftToRight() {
         let tall = Display(
             id: DisplayID(1), name: "Portrait", frame: Rect(x: 0, y: 0, width: 1080, height: 1920),
             visibleFrame: Rect(x: 0, y: 25, width: 1080, height: 1895), isMain: true)
@@ -662,7 +686,7 @@ struct AccordionTests {
         h.engine.run("workspace w; project bil")
         h.ws.focused = WindowID(1)
         h.engine.refresh()
-        #expect(h.ws.frame(1) == Rect(x: 0, y: 25, width: 1080, height: 1865))
-        #expect(h.ws.frame(2) == Rect(x: 0, y: 55, width: 1080, height: 1865))
+        #expect(h.ws.frame(1) == Rect(x: 0, y: 25, width: 1050, height: 1895))
+        #expect(h.ws.frame(2) == Rect(x: 30, y: 25, width: 1050, height: 1895))
     }
 }

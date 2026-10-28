@@ -54,10 +54,10 @@ public struct Planner: Sendable {
     public func layoutFrames(weights: [Double], layout: Layout, on display: Display, front: Int = 0) -> [Rect] {
         let area = display.visibleFrame.insetBy(gap)
         guard weights.count > 1 else { return weights.map { _ in area } }
-        let horizontal = isHorizontal(layout, area)
         guard layout.kind == .tiles else {
-            return weights.indices.map { accordionFrame($0, front: front, count: weights.count, area: area, horizontal: horizontal) }
+            return weights.indices.map { accordionFrame($0, front: front, count: weights.count, area: area) }
         }
+        let horizontal = isHorizontal(layout, area)
         let length = tileLength(count: weights.count, area: area, horizontal: horizontal)
         let total = weights.reduce(0, +)
         var offset = horizontal ? area.x : area.y
@@ -72,7 +72,8 @@ public struct Planner: Sendable {
 
     /// Maximized windows as an accordion, like AeroSpace's: the front window leaves `accordionPadding` at each
     /// side that has windows; those behind it fill the rest of the area, so their edges show in that strip.
-    func accordionFrame(_ i: Int, front: Int, count: Int, area: Rect, horizontal: Bool) -> Rect {
+    /// Always left to right, whatever the orientation of the display or the workspace.
+    func accordionFrame(_ i: Int, front: Int, count: Int, area: Rect) -> Rect {
         let p = accordionPadding
         let (start, length): (Double, Double)
         if i < front {
@@ -83,9 +84,7 @@ public struct Planner: Sendable {
             let before = front > 0 ? p : 0
             (start, length) = (before, -before - (front < count - 1 ? p : 0))
         }
-        return horizontal
-            ? Rect(x: area.x + start, y: area.y, width: area.width + length, height: area.height)
-            : Rect(x: area.x, y: area.y + start, width: area.width, height: area.height + length)
+        return Rect(x: area.x + start, y: area.y, width: area.width + length, height: area.height)
     }
 
     /// The points shared by the tiles along the split axis (the area minus inner gaps).

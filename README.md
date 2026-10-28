@@ -11,7 +11,7 @@ A small macOS window manager for working on one project at a time, keyboard firs
   go: a reconnected display shows its last workspace again, and the focused workspace follows its windows off a
   disconnected one.
 - **Maximized by default, tiles on demand.** Each workspace is `maximized` (windows fill the display as an
-  accordion, like AeroSpace's: the edges of the windows behind the focused one show at its sides,
+  accordion, like AeroSpace's: the edges of the windows behind the focused one show at its left and right, also on portrait displays,
   `accordion-padding` points, 30; `focus next|prev` cycles) or `tiles` (side by side on landscape, stacked on portrait; `move`, `resize`, `balance`). The layout is
   remembered per project and workspace. `float` takes a window out of the layout.
 - **Linking.** Rules over bundle ID, process arguments (`--user-data-dir`, `--instance-group`) and window title
@@ -29,13 +29,13 @@ A small macOS window manager for working on one project at a time, keyboard firs
   | `a`–`z` | workspace |
   | leader | last workspace |
   | arrows | focus |
-  | `enter` | toggle layout |
+  | `enter` | next window of the focused app (active project and unlinked, any workspace; repeats) |
   | `tab` | next display |
   | `space` | +project: the same keys for projects (a project's key, `space` last project, `.` move window, `,` go with window, `n` no project, arrows cycle) |
   | `.` | +move (arrows, `tab` window to next display, `space` workspace to next display) |
   | `,` | +go with window |
-  | `/` | +layout |
-  | `~` | +launch: launch or focus the active project's window of an app, keyed by its workspace |
+  | `/` | +launch: launch or focus the active project's window of an app, keyed by its workspace |
+  | `'` | +layout (`enter` toggle) |
   | `;` | +config (`r` reload, `e` edit) |
 
   In binding keys `leader` stands for all the leader keys, `{workspace}` for every letter
