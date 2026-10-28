@@ -3,8 +3,9 @@
 A small macOS window manager for working on one project at a time, keyboard first.
 
 - **Projects.** A window is either *linked* to one project or *unlinked*. Switching projects shows the target
-  project's windows where they were and hides other projects' windows on all displays. Unlinked windows are never
-  touched by project switching.
+  project's windows where they were and hides other projects' windows on all displays. Each project gets back
+  the workspace it last showed on each display, the focused workspace and the window in front. Unlinked windows
+  are never touched by project switching.
 - **Workspaces**, AeroSpace style. Every letter is a workspace. Each one lives on one display, and each display
   shows one workspace at a time. Workspace names are shared by all projects: `w` is "web" in every project and
   shows only the active project's browser windows (plus unlinked ones). Displays are followed as they come and

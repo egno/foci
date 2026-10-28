@@ -206,6 +206,7 @@ public final class Engine {
     private func dropUnknownProjects() {
         let names = Set(config.projects.map(\.name))
         if let a = state.activeProject, !names.contains(a) { state.activeProject = nil }
+        state.projectViews = state.projectViews.filter { $0.key.isEmpty || names.contains($0.key) }
         for (id, r) in state.windows where r.owner.map({ !names.contains($0) }) == true {
             state.windows[id]?.owner = nil
         }
@@ -698,11 +699,25 @@ public final class Engine {
         focus(id)
     }
 
+    /// Switches the project and restores what it showed when it was last active: the workspace on each display
+    /// and the focused one. Callers that then show a particular workspace override it on that display.
     private func setProject(_ p: String?) {
         guard p != state.activeProject else { return }
         onLog?("project \(state.activeProject ?? "-") -> \(p ?? "-")")
+        state.projectViews[state.activeProject ?? ""] = ProjectView(
+            activeWorkspace: state.activeWorkspace, focusedWorkspace: state.focusedWorkspace)
         state.previousProject = ProjectSlot(state.activeProject)
         state.activeProject = p
+        guard let view = state.projectViews[p ?? ""] else { return }
+        let present = Set(displays.map(\.id))
+        for (d, ws) in view.activeWorkspace where present.contains(d) && display(of: ws).id == d {
+            state.activeWorkspace[d] = ws
+        }
+        if let ws = view.focusedWorkspace, state.activeWorkspace.values.contains(ws) {
+            state.focusedWorkspace = ws
+        } else if let ws = state.focusedWorkspace, !state.activeWorkspace.values.contains(ws) {
+            state.focusedWorkspace = state.activeWorkspace[display(of: ws).id]
+        }
     }
 
     private func showWorkspace(_ ws: String) {

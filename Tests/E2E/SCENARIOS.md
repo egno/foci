@@ -296,6 +296,10 @@ workspace, and a missing window of an app on a shown workspace is launched.
 **B7 Focus is restored per project and workspace.** alpha: two windows on `w` (`aw`, `aw2`), focus `aw2`.
 `project beta`, focus `bw`. `project alpha` → focused(`aw2`). `project beta` → focused(`bw`).
 
+**B7a Workspaces are restored per project.** [2D] alpha: `workspace c`, `workspace x`. `project beta`,
+`workspace w`. `project alpha` → main shows `c`, `side` shows `x`, focused workspace `x`. `project beta` → main
+`w`, focused `w`. A project never active before keeps what is shown.
+
 **B8 Focusing a hidden window follows it.** alpha active on `w`. Focus `bw` from outside Foci with the Probe's
 `focus` command (it activates the app and makes that window key; Cmd-Tab, the Dock and `open -a` can't target one
 window of an app, they remain for manual checks). Expect project → beta, `w` shown, focused(`bw`).

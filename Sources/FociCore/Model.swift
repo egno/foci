@@ -162,6 +162,17 @@ public struct ProjectSlot: Equatable, Codable, Sendable {
     public init(_ name: String?) { self.name = name }
 }
 
+/// What a project showed when it was last active.
+public struct ProjectView: Equatable, Codable, Sendable {
+    /// The workspace shown on each display.
+    public var activeWorkspace: [DisplayID: String]
+    public var focusedWorkspace: String?
+
+    public init(activeWorkspace: [DisplayID: String], focusedWorkspace: String?) {
+        self.activeWorkspace = activeWorkspace; self.focusedWorkspace = focusedWorkspace
+    }
+}
+
 /// Everything Foci persists between runs.
 public struct State: Equatable, Codable, Sendable {
     public var activeProject: String?
@@ -179,6 +190,8 @@ public struct State: Equatable, Codable, Sendable {
     public var lastFocused: [String: WindowID] = [:]
     /// Layout chosen at runtime per "project|workspace". Overrides the config.
     public var layouts: [String: Layout] = [:]
+    /// What each project ("" = no project) showed when it was last active; restored when it becomes active again.
+    public var projectViews: [String: ProjectView] = [:]
     public var nextSeq: Int = 0
 
     public init() {}
@@ -196,6 +209,7 @@ public struct State: Equatable, Codable, Sendable {
         windows = try c.decodeIfPresent([WindowID: WindowRecord].self, forKey: .windows) ?? [:]
         lastFocused = try c.decodeIfPresent([String: WindowID].self, forKey: .lastFocused) ?? [:]
         layouts = try c.decodeIfPresent([String: Layout].self, forKey: .layouts) ?? [:]
+        projectViews = try c.decodeIfPresent([String: ProjectView].self, forKey: .projectViews) ?? [:]
         nextSeq = try c.decodeIfPresent(Int.self, forKey: .nextSeq) ?? 0
     }
 
