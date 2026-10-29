@@ -39,6 +39,10 @@ struct ParsingTests {
         #expect(KeyCombo(parsing: "Right-Cmd") == KeyCombo(modifiers: [], key: "right-cmd"))
         #expect(KeyCombo(parsing: "right-cmd")?.description == "right-cmd")
         #expect(KeyCombo(parsing: "shift-right-cmd") == nil)
+        #expect(KeyCombo(parsing: "Hold-Space") == KeyCombo(modifiers: [], key: "hold-space"))
+        #expect(KeyCombo(parsing: "hold-space")?.heldKey == "space")
+        #expect(KeyCombo(parsing: "hold-") == nil)
+        #expect(KeyCombo(parsing: "hold-ctrl-a") == nil)
     }
 
     @Test func displaySpecs() {

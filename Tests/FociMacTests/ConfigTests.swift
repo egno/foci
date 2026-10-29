@@ -230,6 +230,45 @@ struct ConfigTests {
         #expect(KeyHintPanel.keyLabel(KeyCombo(parsing: "right-cmd")!) == "⌘›")
     }
 
+    @Test func heldKeys() throws {
+        let space = 49, j = 38
+        let hold = KeyCombo(parsing: "hold-space")!, plain = KeyCombo(parsing: "space")!
+        var h = HoldDetector()
+        h.keys = [space: (hold, nil)]
+        // Held past the delay: acts; the rest of the press is swallowed, other keys pass.
+        #expect(h.key(space, down: true, plain: true, repeating: false) == .wait(hold))
+        #expect(h.key(space, down: true, plain: true, repeating: true) == .swallow)
+        let acted = h.held(h.pressID)
+        #expect(acted)
+        #expect(h.key(j, down: true, plain: true, repeating: false) == .pass)
+        #expect(h.key(space, down: true, plain: true, repeating: true) == .swallow)
+        #expect(h.key(space, down: false, plain: true, repeating: false) == .swallow)
+        // Tapped: typed; the late delay does nothing.
+        #expect(h.key(space, down: true, plain: true, repeating: false) == .wait(hold))
+        let id = h.pressID
+        #expect(h.key(space, down: false, plain: true, repeating: false) == .tapped(nil))
+        let late = h.held(id)
+        #expect(!late)
+        // Typing fast: space, then j before space is up.
+        _ = h.key(space, down: true, plain: true, repeating: false)
+        #expect(h.key(j, down: true, plain: true, repeating: false) == .typing(space))
+        let typed = h.held(h.pressID)
+        #expect(!typed)
+        #expect(h.key(space, down: false, plain: true, repeating: false) == .pass)
+        // With a modifier (⌘Space): not ours.
+        #expect(h.key(space, down: true, plain: false, repeating: false) == .pass)
+        // A mode that binds space too: a tap runs it.
+        h.keys = [space: (hold, plain)]
+        _ = h.key(space, down: true, plain: true, repeating: false)
+        #expect(h.key(space, down: false, plain: true, repeating: false) == .tapped(plain))
+        #expect(KeyHintPanel.keyLabel(hold) == "Hold Space")
+
+        let c = try TOMLConfigSource.parse("hold-delay = 300\nleader = ['hold-space']\n[mode.main.binding]\nleader = 'mode control'")
+        #expect(c.holdDelay == 0.3)
+        #expect(c.modes["main"] == [hold: "mode control"])
+        #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("hold-delay = 0") }
+    }
+
     @Test func menuBarStyle() throws {
         #expect(try TOMLConfigSource.parse("").menuBarStyle == .i3)
         #expect(try TOMLConfigSource.parse("menu-bar-style = 'text'").menuBarStyle == .text)

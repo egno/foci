@@ -23,7 +23,8 @@ A small macOS window manager for working on one project at a time, keyboard firs
   link, or the nearest parent process with windows (a terminal running `open`, `gh --web`). Links from unlinked
   windows go to the active project. Outside any project, `browser` opens them in an unlinked window.
 - **Leader key and submenus**, like AstroNvim. The leader (`leader = ['right-cmd', 'f20', 'ctrl-esc']`: right ⌘
-  tapped alone, or a key) opens a menu of single plain keys:
+  tapped alone, or a key; `hold-space`: space held for `hold-delay` ms (250), typed as usual when tapped or
+  when the next key comes first) opens a menu of single plain keys:
 
   | Key | Does |
   |---|---|

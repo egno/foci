@@ -38,6 +38,8 @@ public struct Config: Equatable, Sendable {
     public var leaderTimeout: Double = 5
     /// Seconds the repeat keys stay active after the last one.
     public var repeatTimeout: Double = 1
+    /// Seconds a `hold-` key must be held down to act; a shorter press types the key.
+    public var holdDelay: Double = 0.25
     /// Popup listing the next keys when a mode other than `main` waits for a key, like which-key.
     public var keyHints = true
     /// Seconds without a key press before the hints appear.
@@ -207,9 +209,21 @@ public struct KeyCombo: Hashable, Sendable, CustomStringConvertible {
         self.modifiers = modifiers; self.key = key
     }
 
+    /// A plain key held down past `Config.holdDelay` acts as this key; tapped, it still types (`hold-space`).
+    public static let holdPrefix = "hold-"
+
+    /// The plain key of a `hold-` key.
+    public var heldKey: String? { key.hasPrefix(Self.holdPrefix) ? String(key.dropFirst(Self.holdPrefix.count)) : nil }
+
     public init?(parsing s: String) {
         if Self.tapKeys.contains(s.lowercased()) {
             self.init(modifiers: [], key: s.lowercased())
+            return
+        }
+        if s.lowercased().hasPrefix(Self.holdPrefix) {
+            let key = String(s.lowercased().dropFirst(Self.holdPrefix.count))
+            guard !key.isEmpty, !key.contains("-") else { return nil }
+            self.init(modifiers: [], key: Self.holdPrefix + key)
             return
         }
         var parts = s.lowercased().split(separator: "-", omittingEmptySubsequences: false).map(String.init)

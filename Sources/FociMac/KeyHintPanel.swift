@@ -60,6 +60,7 @@ final class KeyHintPanel {
 
     static func keyLabel(_ combo: KeyCombo) -> String {
         if combo.modifiers == [.shift], let symbol = shiftedNames[combo.key] { return symbol }
+        if let held = combo.heldKey { return "Hold " + keyLabel(KeyCombo(modifiers: [], key: held)) }
         return modifierSymbols(combo) + (keyNames[combo.key] ?? combo.key.uppercased())
     }
 

@@ -46,7 +46,10 @@ enum DefaultConfig {
 
         # The leader: any of these keys. In bindings, 'leader' stands for all of them.
         # Tapped alone (right-cmd, left-alt, ...): still a modifier when held with another key.
+        # 'hold-<key>' (hold-space): a plain key held down for 'hold-delay' milliseconds; tapped, or with another key
+        # pressed before the delay (typing fast), it types as usual.
         leader = ['right-cmd', 'f20', 'ctrl-esc']
+        hold-delay = 250
 
         # URL router: make Foci the default browser (System Settings > Desktop & Dock > Default web browser) and
         # links open in the browser of the project they were clicked in: the project's first app with 'open-url'.

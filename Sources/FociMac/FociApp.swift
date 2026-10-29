@@ -159,6 +159,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
 
     private func bindHotkeys() {
         guard let engine else { return }
+        hotkeys.holdDelay = engine.config.holdDelay
         hotkeyProblems = hotkeys.register(engine.bindings)
         hotkeys.reportsOtherInput = engine.mode != "main"
         for e in hotkeyProblems { log.error("\(e, privacy: .public)") }

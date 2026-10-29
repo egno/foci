@@ -4,7 +4,8 @@ import FociCore
 
 /// Global hotkeys via Carbon `RegisterEventHotKey`: needs no Input Monitoring permission.
 /// Modifier keys tapped alone (`right-cmd`) can't be registered there: they are seen by an `NSEvent` monitor
-/// of modifier changes, which needs the Accessibility permission Foci has anyway.
+/// of modifier changes, which needs the Accessibility permission Foci has anyway. Plain keys held down
+/// (`hold-space`) go through a keyboard event tap, see `HoldDetector`.
 @MainActor
 public final class Hotkeys {
     /// Receives the bound key that was pressed.
@@ -13,6 +14,8 @@ public final class Hotkeys {
     /// Foci only watches.
     public var onOtherInput: (() -> Void)?
     public var reportsOtherInput = false
+    /// Seconds a `hold-` key must be held down to act.
+    public var holdDelay: TimeInterval = 0.25
 
     private var refs: [EventHotKeyRef] = []
     private var combos: [UInt32: KeyCombo] = [:]
@@ -26,6 +29,8 @@ public final class Hotkeys {
     private var replaced: (chords: Set<Chord>, at: TimeInterval) = ([], 0)
     private var taps = TapDetector()
     private var monitors: [Any] = []
+    private var holds = HoldDetector()
+    private var holdTap: CFMachPort?
 
     public init() {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
@@ -59,11 +64,27 @@ public final class Hotkeys {
         replaced = (registered, GetCurrentEventTime())
         registered = []
         var errors: [String] = []
+        holds.keys = [:]
+        for combo in bindings.keys {
+            guard let held = combo.heldKey else { continue }
+            guard let code = Self.keyCodes[held] else {
+                errors.append("unknown key '\(held)' in '\(combo)'")
+                continue
+            }
+            // Tapped, the key itself: bound in this mode, or typed.
+            let plain = KeyCombo(modifiers: [], key: held)
+            holds.keys[code] = (combo, bindings[plain] == nil ? nil : plain)
+        }
+        if !holds.keys.isEmpty, let error = installHoldTap() { errors.append(error) }
+        let heldCodes = Set(holds.keys.keys)
         for (i, combo) in bindings.keys.sorted(by: { $0.description < $1.description }).enumerated() {
             if KeyCombo.tapKeys.contains(combo.key) {
                 tapKeys.insert(combo.key)
                 continue
             }
+            if combo.heldKey != nil { continue }
+            // The event tap sees the key first and runs it when tapped.
+            if combo.modifiers.isEmpty, let code = Self.keyCodes[combo.key], heldCodes.contains(code) { continue }
             guard let code = Self.keyCodes[combo.key] else {
                 errors.append("unknown key '\(combo.key)' in '\(combo)'")
                 continue
@@ -87,6 +108,75 @@ public final class Hotkeys {
         guard let combo = combos[id] else { return }
         // Not inside the Carbon handler: the command may re-register hotkeys (mode switch).
         DispatchQueue.main.async { [weak self] in self?.onHotkey?(combo) }
+    }
+
+    /// Keyboard event tap for `hold-` keys: kept once installed, it passes everything through while no `hold-`
+    /// key is bound.
+    private func installHoldTap() -> String? {
+        if holdTap != nil { return nil }
+        let callback: CGEventTapCallBack = { proxy, type, event, refcon in
+            guard let refcon else { return Unmanaged.passUnretained(event) }
+            let hotkeys = Unmanaged<Hotkeys>.fromOpaque(refcon).takeUnretainedValue()
+            // Runs on the main run loop.
+            nonisolated(unsafe) let (proxy, event) = (proxy, event)
+            nonisolated(unsafe) var result: Unmanaged<CGEvent>?
+            MainActor.assumeIsolated { result = hotkeys.handleHoldTap(proxy, type, event) }
+            return result
+        }
+        let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
+        guard
+            let tap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
+                eventsOfInterest: CGEventMask(mask), callback: callback,
+                userInfo: Unmanaged.passUnretained(self).toOpaque())
+        else { return "can't watch held keys: no Accessibility permission?" }
+        CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
+        holdTap = tap
+        return nil
+    }
+
+    private func handleHoldTap(_ proxy: CGEventTapProxy, _ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let holdTap { CGEvent.tapEnable(tap: holdTap, enable: true) }
+            return Unmanaged.passUnretained(event)
+        }
+        let code = Int(event.getIntegerValueField(.keyboardEventKeycode))
+        let plain = event.flags.isDisjoint(with: [.maskCommand, .maskControl, .maskAlternate, .maskShift])
+        let repeating = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        let action = holds.key(code, down: type == .keyDown, plain: plain, repeating: repeating)
+        switch action {
+        case .pass:
+            return Unmanaged.passUnretained(event)
+        case .swallow:
+            return nil
+        case .wait(let combo):
+            let id = holds.pressID
+            DispatchQueue.main.asyncAfter(deadline: .now() + holdDelay) { [weak self] in
+                guard let self, self.holds.held(id) else { return }
+                self.onHotkey?(combo)
+            }
+            return nil
+        case .tapped(let combo):
+            if let combo {
+                DispatchQueue.main.async { [weak self] in self?.onHotkey?(combo) }
+            } else {
+                Self.post(code, down: true, like: event, proxy)
+                Self.post(code, down: false, like: event, proxy)
+            }
+            return nil
+        case .typing(let held):
+            // Another key while held briefly: typing fast, the held key first. Copies keep the order.
+            Self.post(held, down: true, like: event, proxy)
+            event.copy().map { $0.tapPostEvent(proxy) }
+            return nil
+        }
+    }
+
+    private static func post(_ code: Int, down: Bool, like event: CGEvent, _ proxy: CGEventTapProxy) {
+        guard let e = CGEvent(keyboardEventSource: CGEventSource(event: event), virtualKey: CGKeyCode(code), keyDown: down)
+        else { return }
+        e.flags = event.flags
+        e.tapPostEvent(proxy)
     }
 
     private func observe(_ event: NSEvent) {
@@ -161,6 +251,67 @@ public final class Hotkeys {
         for (i, code) in fKeys.enumerated() { k["f\(i + 1)"] = code }
         return k
     }()
+}
+
+/// A plain key that acts when held down (`hold-space`): its press is held back until it is released (the key
+/// is typed, or runs its own binding), another key comes (typing fast: typed), or it is held `holdDelay`.
+struct HoldDetector {
+    enum Action: Equatable {
+        case pass, swallow
+        /// Held back: acts as the combo if still held after the delay.
+        case wait(KeyCombo)
+        /// Released before the delay: run the combo, or type the key if nil.
+        case tapped(KeyCombo?)
+        /// Another key during the wait: type the held key (code) first, then that key.
+        case typing(Int)
+    }
+
+    /// Key code → the `hold-` combo, and the plain key's own binding in this mode.
+    var keys: [Int: (hold: KeyCombo, plain: KeyCombo?)] = [:]
+    /// Counts presses, so a delay that ends after the key was released does nothing.
+    private(set) var pressID = 0
+
+    private enum State {
+        case waiting(code: Int, plain: KeyCombo?, id: Int)
+        /// Acted after the delay: the rest of this press is Foci's.
+        case acted(code: Int)
+        /// Typed: the rest of this press goes to the app.
+        case typed(code: Int)
+    }
+    private var state: State?
+
+    mutating func key(_ code: Int, down: Bool, plain: Bool, repeating: Bool) -> Action {
+        switch state {
+        case .waiting(let held, let binding, _) where held == code:
+            if down { return .swallow }
+            state = nil
+            return .tapped(binding)
+        case .waiting(let held, _, _):
+            guard down else { return .pass }
+            state = .typed(code: held)
+            return .typing(held)
+        case .acted(let held) where held == code:
+            if !down { state = nil }
+            return .swallow
+        case .typed(let held) where held == code:
+            if !down { state = nil }
+            return .pass
+        case .acted, .typed:
+            return .pass
+        case nil:
+            guard down, !repeating, plain, let hold = keys[code] else { return .pass }
+            pressID += 1
+            state = .waiting(code: code, plain: hold.plain, id: pressID)
+            return .wait(hold.hold)
+        }
+    }
+
+    /// The delay of press `id` ended: true if it should act now.
+    mutating func held(_ id: Int) -> Bool {
+        guard case .waiting(let code, _, let current) = state, current == id else { return false }
+        state = .acted(code: code)
+        return true
+    }
 }
 
 /// A modifier key pressed and released alone, quickly, with nothing else pressed in between.
