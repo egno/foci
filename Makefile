@@ -14,7 +14,7 @@ app:
 
 # Quits the running Foci (it restores parked windows on quit), installs and starts the new one.
 install: app
-	-pkill -TERM -x foci && sleep 1
+	-pkill -TERM -x foci; while pgrep -x foci >/dev/null; do sleep 0.2; done
 	mkdir -p $(INSTALL_DIR)
 	rm -rf $(INSTALL_DIR)/Foci.app
 	cp -R $(APP) $(INSTALL_DIR)/Foci.app

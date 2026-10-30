@@ -38,6 +38,8 @@ public struct Config: Equatable, Sendable {
     public var leaderTimeout: Double = 5
     /// Seconds the repeat keys stay active after the last one.
     public var repeatTimeout: Double = 1
+    /// Windows `focus-back` can go back to.
+    public var focusHistory = 10
     /// Seconds a `hold-` key must be held down to act; a shorter press types the key.
     public var holdDelay: Double = 0.25
     /// Popup listing the next keys when a mode other than `main` waits for a key, like which-key.

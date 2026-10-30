@@ -44,7 +44,7 @@ public final class TOMLConfigSource: ConfigSource {
         try checkKeys(
             root,
             ["start-at-login", "gap", "accordion-padding", "default-layout", "workspaces", "apps", "browser", "projects", "leader", "mode",
-             "key-hints", "key-hints-delay", "leader-timeout", "repeat-timeout", "hold-delay", "menu-bar-style"],
+             "key-hints", "key-hints-delay", "leader-timeout", "repeat-timeout", "hold-delay", "focus-history", "menu-bar-style"],
             at: "top level")
         if let v = root["start-at-login"] { c.startAtLogin = try bool(v, "start-at-login") }
         if let v = root["menu-bar-style"] {
@@ -69,6 +69,11 @@ public final class TOMLConfigSource: ConfigSource {
             // No "forever": repeat keys are plain letters taken from every app while active.
             guard ms > 0 else { throw ConfigError("repeat-timeout: expected milliseconds > 0") }
             c.repeatTimeout = ms / 1000
+        }
+        if let v = root["focus-history"] {
+            let n = try number(v, "focus-history")
+            guard n >= 1 else { throw ConfigError("focus-history: expected a number of windows >= 1") }
+            c.focusHistory = Int(n)
         }
         if let v = root["hold-delay"] {
             let ms = try number(v, "hold-delay")

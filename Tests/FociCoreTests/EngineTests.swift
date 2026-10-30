@@ -286,6 +286,75 @@ struct EngineTests {
         #expect(h.ws.focused == WindowID(4))
     }
 
+    @Test func focusBackWalksTheHistoryAndCommitsWhenTheRepeatEnds() {
+        var c = Config.sample
+        c.focusHistory = 2
+        c.modes["control"] = [KeyCombo(parsing: "space")!: "focus-back"]
+        c.repeatKeys["control"] = [KeyCombo(parsing: "space")!]
+        let h = Harness(config: c)
+        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group iam")
+        h.ws.open(3, bundle: "com.google.Chrome", title: "Personal")
+        h.ws.open(4, bundle: "com.google.Chrome", title: "Other")
+        h.engine.run("workspace w; project bil")
+        for id: UInt32 in [4, 3, 2] {  // Cmd-Tab: 4, then 3, then iam's kitty
+            h.ws.focused = WindowID(id)
+            h.engine.refresh()
+        }
+        let space = KeyCombo(parsing: "space")!
+        func leaderSpace() {
+            h.engine.run("mode control")
+            h.engine.press(space)
+        }
+        // Leader space: the previous window.
+        leaderSpace()
+        #expect(h.ws.focused == WindowID(3))
+        h.engine.refresh()  // the focus reported late is not a user action
+        // Space again while repeating: one further back.
+        h.engine.press(space)
+        #expect(h.ws.focused == WindowID(4))
+        // The history is 2 deep: the focus stays.
+        h.engine.press(space)
+        #expect(h.ws.focused == WindowID(4))
+        h.engine.run("mode main")  // the repeat timed out on window 4
+        // Leader space after the pause: back to where it started.
+        leaderSpace()
+        #expect(h.ws.focused == WindowID(2))
+        #expect(h.engine.activeProject == "iam")
+        h.engine.run("mode main")
+        leaderSpace()
+        #expect(h.ws.focused == WindowID(4))
+        // A closed window is skipped.
+        h.engine.run("mode main")
+        h.ws.windowList.removeAll { $0.id == WindowID(2) }
+        h.engine.refresh()
+        leaderSpace()
+        #expect(h.ws.focused == WindowID(3))
+    }
+
+    @Test func focusBackShowsEachWindowOnce() {
+        var c = Config.sample
+        c.modes["control"] = [KeyCombo(parsing: "space")!: "focus-back"]
+        c.repeatKeys["control"] = [KeyCombo(parsing: "space")!]
+        let h = Harness(config: c)
+        for id: UInt32 in 1...4 { h.ws.open(id, bundle: "com.google.Chrome", title: "Personal \(id)") }
+        h.engine.run("workspace w")
+        // A B C B D B A by hand.
+        for id: UInt32 in [1, 2, 3, 2, 4, 2, 1] {
+            h.ws.focused = WindowID(id)
+            h.engine.refresh()
+        }
+        let space = KeyCombo(parsing: "space")!
+        h.engine.run("mode control")
+        var seen: [WindowID?] = []
+        for _ in 0..<4 {
+            h.engine.press(space)
+            seen.append(h.ws.focused)
+        }
+        // B D C, then the history is used up: C stays.
+        #expect(seen == [2, 4, 3, 3].map { WindowID($0) })
+    }
+
     @Test func moveWorkspaceToOtherDisplay() {
         let h = Harness()
         h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")

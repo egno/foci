@@ -19,6 +19,8 @@ public enum Command: Equatable, Sendable {
     case focusWindow(Direction)
     /// Cycle the windows of the focused window's app in the active project and unlinked ones, any workspace.
     case focusApp(Direction)
+    /// Back in the focus history, revealing the window's project and workspace; repeated, further back.
+    case focusBack
     /// Swap the focused window with its neighbour in the workspace order.
     case moveWindow(Direction)
     case layout(LayoutChange)
@@ -111,6 +113,7 @@ public enum Command: Equatable, Sendable {
         case "focus-display": return .focusDisplay(try direction())
         case "focus": return .focusWindow(try direction())
         case "focus-app": return .focusApp(try direction())
+        case "focus-back": try none(); return .focusBack
         case "move": return .moveWindow(try direction())
         case "layout":
             switch try one() {

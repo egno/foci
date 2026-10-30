@@ -41,6 +41,11 @@ public final class Engine {
     private var target: WindowID?
     /// Last focused window reported by the OS; a change means the user focused something.
     private var lastSeenFocus: WindowID?
+    /// Managed windows by last focus, the focused one first: `focus-back`.
+    private var focusHistory: [WindowID] = []
+    /// While `focus-back` repeats: the index in `focusHistory` it went to. The history stays as it was until the
+    /// repeat ends, then that window comes first, so the next `focus-back` returns to where it started.
+    private var browsing: Int?
     /// Displays seen by the last sync, to log changes.
     private var knownDisplays: Set<DisplayID> = []
     /// The focus found at startup is not a user action: it may be a stale focus on a parked window.
@@ -271,6 +276,9 @@ public final class Engine {
             hasSeenFocus = f != nil
             return
         }
+        // Focus reported late for the window `focus-back` went to is not the user's.
+        if let i = browsing, i < focusHistory.count, focusHistory[i] == f { return }
+        endBrowsing()
         guard let f, let r = state.windows[f] else { return }
         if !isVisible(r) {
             onLog?("focus moved to hidden window \(f) (\(r.app ?? "?"), project \(r.owner ?? "-"), workspace \(r.workspace)): following")
@@ -331,7 +339,15 @@ public final class Engine {
         return errors
     }
 
+    /// The window `focus-back` went to becomes the focused one in the history.
+    private func endBrowsing() {
+        guard let i = browsing else { return }
+        browsing = nil
+        if i < focusHistory.count { rememberFocus(focusHistory[i]) }
+    }
+
     private func setMode(_ m: String) {
+        endBrowsing()
         isRepeating = false
         if m == "main" {
             modePath = []
@@ -365,6 +381,7 @@ public final class Engine {
         defer { target = nil }
         var errors: [String] = []
         for c in commands {
+            if c != .focusBack { endBrowsing() }
             if let e = execute(c) { errors.append(e) }
         }
         apply()
@@ -472,6 +489,16 @@ public final class Engine {
                 .map(\.key)
             guard list.count > 1, let i = list.firstIndex(of: id) else { return nil }
             reveal(list[(i + (dir == .next ? 1 : -1) + list.count) % list.count])
+
+        case .focusBack:
+            if browsing == nil {
+                focusHistory.removeAll { state.windows[$0] == nil || facts[$0]?.isFrozen != false }
+            }
+            // Each window once: past the oldest one, the focus stays.
+            let i = (browsing ?? 0) + 1
+            guard i < focusHistory.count else { return nil }
+            browsing = i
+            reveal(focusHistory[i])
 
         case .moveWindow(let dir):
             guard let id = focusedManagedWindow(), state.windows[id]?.floating == false else {
@@ -743,6 +770,10 @@ public final class Engine {
 
     private func rememberFocus(_ id: WindowID) {
         guard let r = state.windows[id] else { return }
+        if browsing == nil {
+            focusHistory.removeAll { $0 == id }
+            focusHistory = Array(([id] + focusHistory).prefix(config.focusHistory + 1))
+        }
         state.lastFocused[State.focusKey(project: state.activeProject, workspace: r.workspace)] = id
     }
 

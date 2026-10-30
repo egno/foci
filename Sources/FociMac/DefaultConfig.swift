@@ -43,6 +43,8 @@ enum DefaultConfig {
         # Repeat keys ('repeat = true', like Emacs's repeat-mode): after one acts, only the repeat keys of its
         # mode stay bound for 'repeat-timeout' milliseconds, so 'leader → → →'. Any other key goes to the app.
         repeat-timeout = 1000
+        # Windows 'focus-back' can go back to, most recently focused first.
+        focus-history = 10
 
         # The leader: any of these keys. In bindings, 'leader' stands for all of them.
         # Tapped alone (right-cmd, left-alt, ...): still a modifier when held with another key.
@@ -185,6 +187,8 @@ enum DefaultConfig {
         #   move-workspace-to-display next|prev    focus-display next|prev
         #   focus next|prev                    cycle windows of the focused workspace
         #   focus-app next|prev                cycle the focused app's windows (active project, unlinked), any workspace
+        #   focus-back                         the previously focused window, in any project and workspace; with
+        #                                      'repeat = true', each press goes further back in the last 'focus-history'
         #   move next|prev                     swap the focused window with its neighbour (tile order)
         #   layout tiles|maximized|toggle|toggle-orientation
         #   resize +N|-N (points)    balance

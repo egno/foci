@@ -267,6 +267,8 @@ struct ConfigTests {
         #expect(c.holdDelay == 0.3)
         #expect(c.modes["main"] == [hold: "mode control"])
         #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("hold-delay = 0") }
+        #expect(try TOMLConfigSource.parse("focus-history = 3").focusHistory == 3)
+        #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("focus-history = 0") }
     }
 
     @Test func menuBarStyle() throws {
