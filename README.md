@@ -42,7 +42,7 @@ A small macOS window manager for working on one project at a time, keyboard firs
   | `space` | +project: the same keys for projects (a project's key, `space` last project, `.` move window, `,` go with window, `n` no project, arrows cycle) |
   | `.` | +move (arrows, `tab` window to next display, `1`–`3` to that display, `space` workspace to next display) |
   | `,` | +go with window (also `tab`, `1`–`3`) |
-  | `/` | +launch: launch or focus the active project's window of an app, keyed by its workspace |
+  | `/` | +launch: launch or focus the active project's window of an app, keyed by its workspace (in the example config's commented-out examples) |
   | `'` | +layout (`enter` toggle) |
   | `;` | +config (`r` reload, `e` edit) |
 
@@ -66,7 +66,7 @@ A small macOS window manager for working on one project at a time, keyboard firs
   across launches.
 - **Autostart.** When you switch to a workspace and the active project has no window of an app that belongs
   there, Foci launches it (per app, configurable). `launch <app>` does the same on demand, or focuses the window
-  if there is one. A project's `open` items (`{ app = 'cursor', open = ['~/src/work'] }`) are substituted, quoted,
+  if there is one. A project's `open` items (`{ app = 'vscode', open = ['~/src/work'] }`) are substituted, quoted,
   into the app's `{open}`.
 
 Hidden windows are parked off-screen in a bottom corner of their display, one window at a time (like AeroSpace):
@@ -118,8 +118,9 @@ it in System Settings → General → Login Items.
 
 To route links, pick Foci in System Settings → Desktop & Dock → Default web browser.
 
-On first start Foci asks for the Accessibility permission and writes an example config to
-`~/.config/foci/config.toml`. The config is reloaded on save; problems appear in the menu bar menu (⚠).
+On start, when there is no config yet, Foci writes the example config to `~/.config/foci/config.toml` (even
+before it gets the Accessibility permission, which it asks for on first start): workspaces and key bindings, with apps, projects and the launch menu as commented-out
+examples (Chrome, kitty, VS Code, Firefox; projects `work` and `pet`) to uncomment and adapt. The config is reloaded on save; problems appear in the menu bar menu (⚠).
 State (links, active project and workspaces) is kept in `~/Library/Application Support/Foci/state.json`.
 For tests, `FOCI_HOME=<dir>` moves the config (`config.toml`), the state and the CLI socket into `<dir>`.
 

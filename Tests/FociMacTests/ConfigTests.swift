@@ -1,4 +1,5 @@
 import FociCore
+import Foundation
 import Testing
 
 @testable import FociMac
@@ -9,16 +10,63 @@ struct ConfigTests {
         let c = try TOMLConfigSource.parse(DefaultConfig.text)
         #expect(c.validate() == [])
         #expect(c.startAtLogin)
-        #expect(c.projects.map(\.name) == ["work", "pet"])
+        // No real apps or projects, only commented examples.
+        #expect(c.apps.isEmpty)
+        #expect(c.projects.isEmpty)
+        #expect(c.browser == nil)
+        #expect(c.modes["launch"] == nil)
         #expect(c.workspaces["x"] == .secondary)
-        #expect(c.apps["chrome"]?.newWindows == .activeProject)
-        #expect(c.project("work")?.ref("dbeaver")?.autostart == false)
-        #expect(c.browser == "chrome")
-        #expect(c.apps["chrome"]?.openURL == #"open -a "Google Chrome" {url}"#)
         for (mode, bindings) in c.modes {
             for combo in bindings.keys {
                 #expect(Hotkeys.keyCodes[combo.key] != nil || KeyCombo.tapKeys.contains(combo.key), "\(mode): \(combo)")
             }
+        }
+    }
+
+    @Test func defaultConfigExamplesWorkUncommented() throws {
+        #expect(DefaultConfig.text.contains(DefaultConfig.commented(DefaultConfig.examples)))
+        let c = try TOMLConfigSource.parse("browser = 'chrome'\n" + DefaultConfig.examples)
+        #expect(c.validate() == [])
+        #expect(c.projects.map(\.name) == ["work", "pet"])
+        #expect(c.apps["chrome"]?.newWindows == .activeProject)
+        #expect(c.apps["chrome"]?.openURL == #"open -a "Google Chrome" {url}"#)
+        #expect(c.project("pet")?.ref("vscode")?.autostart == false)
+        #expect(c.project("work")?.ref("vscode")?.open == ["~/src/work"])
+        #expect(c.modes["launch"]?.count == 4)
+
+        // Uncommented in place, the whole default config is a working setup too.
+        let uncommented = DefaultConfig.text
+            .replacingOccurrences(of: "# browser = 'chrome'", with: "browser = 'chrome'")
+            .replacingOccurrences(of: "# slash = 'mode launch'", with: "slash = 'mode launch'")
+            .replacingOccurrences(of: DefaultConfig.commented(DefaultConfig.examples), with: DefaultConfig.examples)
+        let full = try TOMLConfigSource.parse(uncommented)
+        #expect(full.validate() == [])
+        #expect(full.apps.count == 6)
+        #expect(full.modes["control"]?[KeyCombo(parsing: "slash")!] == "mode launch")
+    }
+
+    @Test func missingConfigIsCreatedFromTheDefaultOne() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "foci-config-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        // The directory doesn't exist yet either, like ~/.config/foci on a new Mac.
+        let source = TOMLConfigSource(url: dir.appending(path: "foci/config.toml"))
+        #expect(try source.installDefaultIfMissing())
+        #expect(try String(contentsOf: source.url, encoding: .utf8) == DefaultConfig.text)
+        #expect(try source.load().validate() == [])
+
+        // An existing config is never overwritten.
+        try "gap = 4\n".write(to: source.url, atomically: true, encoding: .utf8)
+        #expect(try !source.installDefaultIfMissing())
+        #expect(try source.load().gap == 4)
+    }
+
+    @Test func unwritableConfigLocationThrows() throws {
+        let file = FileManager.default.temporaryDirectory.appending(path: "foci-file-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try "".write(to: file, atomically: true, encoding: .utf8)
+        // A file where the config directory should be.
+        #expect(throws: (any Error).self) {
+            try TOMLConfigSource(url: file.appending(path: "config.toml")).installDefaultIfMissing()
         }
     }
 

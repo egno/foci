@@ -18,6 +18,8 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     private var modeTimeout: Timer?
     private var configDate: Date?
     private var configProblems: [String] = []
+    /// Why the example config couldn't be written, shown instead of the load error that follows.
+    private var installProblem: String?
     private var hotkeyProblems: [String] = []
     private var signalSources: [DispatchSourceSignal] = []
     /// Links that arrived before the engine started (e.g. Foci was launched to open one).
@@ -28,6 +30,8 @@ public final class FociApp: NSObject, NSApplicationDelegate {
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         installSignalHandlers()
+        // First, so the config is there to edit while Foci waits for the Accessibility permission.
+        installConfigIfMissing()
         menu.onEditConfig = { [configSource] in NSWorkspace.shared.open(configSource.url) }
         guard AXWindowSystem.isTrusted(prompt: true) else {
             menu.setTitle("Foci ⚠ Accessibility")
@@ -66,8 +70,20 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         cliServer.stop()
     }
 
+    /// No config (first start, or deleted): write the example one.
+    private func installConfigIfMissing() {
+        do {
+            if try configSource.installDefaultIfMissing() {
+                log.info("wrote the example config to \(self.configSource.url.path, privacy: .public)")
+            }
+        } catch {
+            log.error("can't write the example config: \(error, privacy: .public)")
+            installProblem = "can't write \(configSource.url.path): \(error.localizedDescription)"
+        }
+    }
+
     private func start() {
-        configSource.installDefaultIfMissing()
+        installConfigIfMissing()
         let config = loadConfig() ?? Config()
         let engine = Engine(
             config: config, windowSystem: windowSystem, launcher: ShellLauncher(), store: JSONStateStore(),
@@ -139,7 +155,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
             configProblems = c.validate() + [LoginItem.apply(c.startAtLogin)].compactMap { $0 }
             return c
         } catch {
-            configProblems = ["config: \(error)"]
+            configProblems = [installProblem ?? "config: \(error)"]
             return nil
         }
     }

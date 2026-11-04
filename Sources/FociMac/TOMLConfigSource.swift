@@ -20,11 +20,14 @@ public final class TOMLConfigSource: ConfigSource {
         (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
     }
 
-    /// Writes the bundled example config if there is none yet.
-    public func installDefaultIfMissing() {
-        guard !FileManager.default.fileExists(atPath: url.path) else { return }
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? DefaultConfig.text.write(to: url, atomically: true, encoding: .utf8)
+    /// Writes the bundled example config (`DefaultConfig.text`), creating its directory, if there is no config
+    /// yet. Returns true if it wrote one; an existing config is never touched.
+    @discardableResult
+    public func installDefaultIfMissing() throws -> Bool {
+        guard !FileManager.default.fileExists(atPath: url.path) else { return false }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try DefaultConfig.text.write(to: url, atomically: true, encoding: .utf8)
+        return true
     }
 
     public func load() throws -> Config {

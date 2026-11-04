@@ -57,7 +57,7 @@ enum DefaultConfig {
         # links open in the browser of the project they were clicked in: the project's first app with 'open-url'.
         # A link from an unlinked window (Slack) goes to the active project. 'browser' opens links when that
         # project has no browser, or there is no active project, using its 'global-open-url'.
-        browser = 'chrome'
+        # browser = 'chrome'
 
         # Displays are called 'built-in' (the laptop's screen) and 'ext 1'...'ext N' (the others, from the left);
         # 'main' is the one with the menu bar, and part of the model name ('dell') works too.
@@ -66,8 +66,8 @@ enum DefaultConfig {
         # display-order = ['built-in', 'ext 2', 'ext 1']
 
         # Workspace -> display: 'main' (menu bar), 'secondary' (the first other one in display order), a display
-        # number (see 'display-order'), 'built-in', 'ext 2', or part of the model name. With three displays give the third one its workspaces
-        # by number.
+        # number (see 'display-order'), 'built-in', 'ext 2', or part of the model name. With three displays give the
+        # third one its workspaces by number.
         # Long form: x = { display = 'secondary', layout = 'tiles', orientation = 'vertical' }
         # Workspaces not listed here live on the display where they were first used.
         [workspaces]
@@ -89,7 +89,7 @@ enum DefaultConfig {
         #                With {project}: windows that match link to that project.
         # workspace      where new windows of the app go
         # launch         shell command (login shell) starting the app for a project; {project}, and {open} = the
-        #                project's 'open' items, quoted ({ app = 'cursor', open = ['~/src/work'] })
+        #                project's 'open' items, quoted ({ app = 'vscode', open = ['~/src/work'] })
         # global-launch  shell command starting the app when no project uses it
         # open-url       shell command opening a link for a project; {url} (already quoted), {project}.
         #                Foci focuses the project's window of the app first, so the tab opens there. Without a
@@ -101,84 +101,10 @@ enum DefaultConfig {
         # floating       don't maximize
         # manage         false = ignore the app completely
 
-        # One shared Chrome; each window belongs to a project. Name a window with Chrome's "Name Window..."
-        # to keep the link across Chrome restarts (title becomes '<project> - Google Chrome').
-        [apps.chrome]
-        bundle-id = 'com.google.Chrome'
-        title = '^{project} - Google Chrome$'
-        workspace = 'w'
-        new-windows = 'active-project'
-        launch = 'open -na "Google Chrome" --args --new-window'
-        global-launch = 'open -na "Google Chrome" --args --new-window'
-        open-url = 'open -a "Google Chrome" {url}'
-        global-open-url = 'open -a "Google Chrome" {url}'
+        # Examples, commented out: uncomment and adapt them (remove '# ' before the TOML lines). With
+        # 'browser = ...' at the top too, the examples are a working setup.
 
-        # One kitty process per project, attached to the Herdr session of the same name.
-        [apps.kitty]
-        bundle-id = 'net.kovidgoyal.kitty'
-        args = '--instance-group[= ]{project}( |$)'
-        workspace = 'x'
-        launch = '/Applications/kitty.app/Contents/MacOS/kitty --single-instance --instance-group {project} --directory "$HOME" herdr --session {project}'
-        global-launch = 'open -na kitty'
-
-        # One Cursor instance per project. Use the CLI, not 'open -na', to reuse a running instance.
-        [apps.cursor]
-        bundle-id = 'com.todesktop.230313mzl4w4u92'
-        args = '--user-data-dir[= ].*/\.cursor-projects/{project}( |$)'
-        workspace = 'c'
-        launch = 'cursor --user-data-dir "$HOME/.cursor-projects/{project}"'
-        global-launch = 'open -na Cursor'
-
-        [apps.dbeaver]
-        bundle-id = 'org.jkiss.dbeaver.core.product'
-        args = '-data .*/\.dbeaver-projects/{project}( |$)'
-        workspace = 'd'
-        launch = 'open -na DBeaver --args -data "$HOME/.dbeaver-projects/{project}"'
-        global-launch = 'open -na DBeaver'
-
-        # No {project}: every Firefox window belongs to the one project that uses it, so no global-launch.
-        [apps.firefox]
-        bundle-id = 'org.mozilla.firefox'
-        workspace = 'f'
-        launch = 'open -a Firefox'
-        open-url = 'open -a Firefox {url}'
-
-        # Global apps: used by no project, so always unlinked. Listed only to place them on a workspace.
-        [apps.slack]
-        bundle-id = 'com.tinyspeck.slackmacgap'
-        workspace = 's'
-
-        [apps.teams]
-        bundle-id = 'com.microsoft.teams2'
-        workspace = 't'
-
-        [apps.outlook]
-        bundle-id = 'com.microsoft.Outlook'
-        workspace = 'r'
-
-        [apps.vscode]
-        bundle-id = 'com.microsoft.VSCode'
-        workspace = 'v'
-
-        [apps.settings]
-        bundle-id = 'com.apple.systempreferences'
-        workspace = 'a'
-        floating = true
-
-        # ---------------------------------------------------------------- Projects
-        # Order = 'project next|prev' order.
-        # autostart (default true): when you switch to the app's workspace in this project and the project has
-        # no window of the app, launch it.
-        # key (default: the first letter of the name): what '{project}' in a binding key stands for.
-        # Examples: rename them to your projects. A project's Chrome window is the one named '<project>'.
-        [[projects]]
-        name = 'work'
-        apps = ['chrome', 'cursor', 'kitty', { app = 'dbeaver', autostart = false }]
-
-        [[projects]]
-        name = 'pet'
-        apps = ['firefox', { app = 'cursor', autostart = false }, { app = 'kitty', autostart = false }]
-
+        """# + "\n" + commented(examples) + "\n\n" + #"""
         # ---------------------------------------------------------------- Bindings
         # Commands (separate with ';'):
         #   project <name>|--none|next|prev    project-back-and-forth
@@ -243,7 +169,7 @@ enum DefaultConfig {
 
         period = 'mode move'
         comma = 'mode go'
-        slash = 'mode launch'
+        # slash = 'mode launch'   # see the [mode.launch] example above
         quote = 'mode layout'
         semicolon = 'mode config'
 
@@ -316,17 +242,6 @@ enum DefaultConfig {
         '{project}' = 'link --follow {project}'
         n = { run = 'unlink --follow', label = 'unlink, no project' }
 
-        # Launch, or focus, the active project's window of an app: the key is the app's workspace.
-        [mode.launch]
-        label = 'Launch'
-
-        [mode.launch.binding]
-        w = 'launch chrome'
-        c = 'launch cursor'
-        x = 'launch kitty'
-        d = 'launch dbeaver'
-        f = 'launch firefox'
-
         [mode.config]
         label = 'Config'
 
@@ -334,4 +249,83 @@ enum DefaultConfig {
         r = 'reload-config'
         e = { run = 'exec open -t ~/.config/foci/config.toml', label = 'edit config' }
         """#
+
+    /// Example apps, projects and the launch mode: in `text` as comments, valid TOML on their own (tested).
+    static let examples = #"""
+        # One shared Chrome; each window belongs to a project. Name a window with Chrome's "Name Window..."
+        # to keep the link across Chrome restarts (title becomes '<project> - Google Chrome').
+        [apps.chrome]
+        bundle-id = 'com.google.Chrome'
+        title = '^{project} - Google Chrome$'
+        workspace = 'w'
+        new-windows = 'active-project'
+        launch = 'open -na "Google Chrome" --args --new-window'
+        global-launch = 'open -na "Google Chrome" --args --new-window'
+        open-url = 'open -a "Google Chrome" {url}'
+        global-open-url = 'open -a "Google Chrome" {url}'
+
+        # One kitty process per project.
+        [apps.kitty]
+        bundle-id = 'net.kovidgoyal.kitty'
+        args = '--instance-group[= ]{project}( |$)'
+        workspace = 'x'
+        launch = '/Applications/kitty.app/Contents/MacOS/kitty --single-instance --instance-group {project} --directory "$HOME"'
+        global-launch = 'open -na kitty'
+
+        # One VS Code instance per project, opened on the project's 'open' items.
+        [apps.vscode]
+        bundle-id = 'com.microsoft.VSCode'
+        args = '--user-data-dir[= ].*/\.vscode-projects/{project}( |$)'
+        workspace = 'c'
+        launch = 'code --user-data-dir "$HOME/.vscode-projects/{project}" {open}'
+        global-launch = 'open -na "Visual Studio Code"'
+
+        # No {project}: every Firefox window belongs to the one project that uses it, so no global-launch.
+        [apps.firefox]
+        bundle-id = 'org.mozilla.firefox'
+        workspace = 'f'
+        launch = 'open -a Firefox'
+        open-url = 'open -a Firefox {url}'
+
+        # Global apps: used by no project, so always unlinked. Listed only to place them on a workspace.
+        [apps.slack]
+        bundle-id = 'com.tinyspeck.slackmacgap'
+        workspace = 's'
+
+        [apps.settings]
+        bundle-id = 'com.apple.systempreferences'
+        workspace = 'a'
+        floating = true
+
+        # ---------------------------------------------------------------- Projects
+        # Order = 'project next|prev' order.
+        # autostart (default true): when you switch to the app's workspace in this project and the project has
+        # no window of the app, launch it.
+        # key (default: the first letter of the name): what '{project}' in a binding key stands for.
+        [[projects]]
+        name = 'work'
+        apps = ['chrome', { app = 'vscode', open = ['~/src/work'] }, 'kitty']
+
+        [[projects]]
+        name = 'pet'
+        apps = ['firefox', { app = 'vscode', autostart = false, open = ['~/src/pet'] }, { app = 'kitty', autostart = false }]
+
+        # Launch, or focus, the active project's window of an app: the key is the app's workspace. Uncomment the
+        # 'slash' binding in [mode.control.binding] to open it.
+        [mode.launch]
+        label = 'Launch'
+
+        [mode.launch.binding]
+        w = 'launch chrome'
+        c = 'launch vscode'
+        x = 'launch kitty'
+        f = 'launch firefox'
+        """#
+
+    /// TOML lines commented out with '# '; comment lines and blank lines stay as they are.
+    static func commented(_ toml: String) -> String {
+        toml.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.isEmpty || $0.hasPrefix("#") ? String($0) : "# " + $0 }
+            .joined(separator: "\n")
+    }
 }
