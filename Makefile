@@ -1,7 +1,7 @@
 APP := build/Foci.app
 INSTALL_DIR := $(HOME)/Applications
 
-.PHONY: build test app install release run log clean e2e
+.PHONY: build test app install release cask run log clean e2e
 
 build:
 	swift build
@@ -25,6 +25,10 @@ install: app
 # build/Foci-<version>.dmg and .zip for a GitHub release: universal, signed ad hoc, see scripts/release.sh.
 release:
 	scripts/release.sh
+
+# Casks/foci.rb in the Homebrew tap for this version's DMG: make cask TAP=~/proj/homebrew-tap
+cask:
+	scripts/cask.sh
 
 run: build
 	swift run foci
