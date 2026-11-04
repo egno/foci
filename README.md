@@ -77,9 +77,19 @@ back on screen.
 
 ## Install
 
-Download `Foci-<version>.dmg` from [Releases](https://github.com/egno/foci/releases) (macOS 14+, Apple silicon and
+With [Homebrew](https://brew.sh) (macOS 14+, Apple silicon and Intel):
+
+```sh
+brew install --cask egno/tap/foci
+open /Applications/Foci.app
+```
+
+The cask also links the `foci` CLI into Homebrew's `bin`. `brew upgrade` updates Foci; `brew uninstall --zap foci`
+removes the config and the state too.
+
+Or download `Foci-<version>.dmg` from [Releases](https://github.com/egno/foci/releases) (macOS 14+, Apple silicon and
 Intel), open it and drag `Foci.app` onto Applications (or unzip `Foci-<version>.zip`). The app isn't notarized, so
-macOS blocks it at first; clear the quarantine flag once and open it:
+macOS blocks it at first; clear the quarantine flag once and open it (the Homebrew cask does this for you):
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Foci.app
@@ -154,3 +164,13 @@ runs them with a fixture app and its own `FOCI_HOME`; it stops your Foci meanwhi
 3. **M3:** `foci` CLI over a Unix socket, `subscribe` for status bars.
 4. **M4:** URL router: open links in the opener project's browser window.
 5. **M5:** leader key with submenus, key hints, repeat keys; displays connected and disconnected at runtime.
+6. **M6 (0.2.0):** three and more displays: `built-in` / `ext N` names, `display-order`, display commands by number,
+   side or name, parking in a free corner; releases as a DMG and a Homebrew cask.
+
+## Releasing
+
+1. Set `CFBundleShortVersionString` (and bump `CFBundleVersion`) in `Resources/Info.plist`.
+2. `make release` builds `build/Foci-<version>.dmg` and `.zip`: universal, signed ad hoc, not notarized.
+3. Tag `v<version>`, push the tag and attach both files to a GitHub release.
+4. `make cask TAP=~/proj/homebrew-tap` updates `Casks/foci.rb` in [egno/homebrew-tap](https://github.com/egno/homebrew-tap)
+   with the version and the DMG's checksum; commit and push the tap.
