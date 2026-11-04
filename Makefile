@@ -22,7 +22,7 @@ install: app
 	ln -sf $(INSTALL_DIR)/Foci.app/Contents/MacOS/foci $(HOME)/.local/bin/foci
 	open $(INSTALL_DIR)/Foci.app
 
-# build/Foci-<version>.zip for a GitHub release: universal, signed ad hoc, see scripts/release.sh.
+# build/Foci-<version>.dmg and .zip for a GitHub release: universal, signed ad hoc, see scripts/release.sh.
 release:
 	scripts/release.sh
 
