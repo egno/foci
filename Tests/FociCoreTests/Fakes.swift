@@ -94,11 +94,11 @@ extension Config {
         slack.workspace = "s"
         c.apps = ["chrome": chrome, "kitty": kitty, "cursor": cursor, "slack": slack]
         c.projects = [
-            ProjectDef(name: "bil", apps: [
+            ProjectDef(name: "work", apps: [
                 ProjectAppRef(app: "chrome", autostart: false), ProjectAppRef(app: "kitty", autostart: false),
-                ProjectAppRef(app: "cursor", open: ["~/src/bil api"]),
+                ProjectAppRef(app: "cursor", open: ["~/src/work api"]),
             ]),
-            ProjectDef(name: "iam", apps: [
+            ProjectDef(name: "pet", apps: [
                 ProjectAppRef(app: "chrome", autostart: false), ProjectAppRef(app: "kitty", autostart: false),
             ]),
         ]

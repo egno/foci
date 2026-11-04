@@ -9,10 +9,10 @@ struct ConfigTests {
         let c = try TOMLConfigSource.parse(DefaultConfig.text)
         #expect(c.validate() == [])
         #expect(c.startAtLogin)
-        #expect(c.projects.map(\.name) == ["p", "bil", "iam", "gc"])
+        #expect(c.projects.map(\.name) == ["work", "pet"])
         #expect(c.workspaces["x"] == .secondary)
         #expect(c.apps["chrome"]?.newWindows == .activeProject)
-        #expect(c.project("bil")?.ref("dbeaver")?.autostart == false)
+        #expect(c.project("work")?.ref("dbeaver")?.autostart == false)
         #expect(c.browser == "chrome")
         #expect(c.apps["chrome"]?.openURL == #"open -a "Google Chrome" {url}"#)
         for (mode, bindings) in c.modes {
@@ -38,10 +38,10 @@ struct ConfigTests {
             launch = 'cursor {open}'
             floating = true
             [[projects]]
-            name = 'bil'
+            name = 'work'
             apps = ['cursor', { app = 'cursor', autostart = false, workspace = 'c', open = ['~/a', '/b'] }]
             [mode.main.binding]
-            alt-1 = ['project bil', 'workspace w']
+            alt-1 = ['project work', 'workspace w']
             """)
         #expect(c.gap == 8)
         #expect(c.displayOrder == ["main", "LG"])
@@ -50,7 +50,7 @@ struct ConfigTests {
         #expect(c.workspaceLayouts == ["c": Layout(.maximized, orientation: .vertical)])
         #expect(c.apps["cursor"]?.floating == true)
         #expect(c.projects[0].apps[1] == ProjectAppRef(app: "cursor", autostart: false, workspace: "c", open: ["~/a", "/b"]))
-        #expect(c.modes["main"]?[KeyCombo(modifiers: [.alt], key: "1")] == "project bil; workspace w")
+        #expect(c.modes["main"]?[KeyCombo(modifiers: [.alt], key: "1")] == "project work; workspace w")
     }
 
     @Test func rejectsTyposAndBadCommands() {
@@ -159,11 +159,11 @@ struct ConfigTests {
         let c = try TOMLConfigSource.parse(
             """
             [[projects]]
-            name = 'bil'
+            name = 'work'
             [[projects]]
-            name = 'iam'
+            name = 'pet'
             [[projects]]
-            name = 'billing'
+            name = 'web'
             key = 'g'
             [mode.project.binding]
             '{project}' = 'project {project}'
@@ -172,22 +172,22 @@ struct ConfigTests {
             '{project}' = { run = 'link --follow {project}', label = 'go with window to {project}' }
             """)
         func k(_ s: String) -> KeyCombo { KeyCombo(parsing: s)! }
-        #expect(c.modes["project"] == [k("b"): "project bil", k("i"): "project iam", k("g"): "project billing", k("n"): "project --none"])
-        #expect(c.modes["link-go"]?[k("g")] == "link --follow billing")
-        #expect(c.bindingLabels["link-go"]?[k("i")] == "go with window to iam")
+        #expect(c.modes["project"] == [k("w"): "project work", k("p"): "project pet", k("g"): "project web", k("n"): "project --none"])
+        #expect(c.modes["link-go"]?[k("g")] == "link --follow web")
+        #expect(c.bindingLabels["link-go"]?[k("p")] == "go with window to pet")
         #expect(c.keyHints(for: "project").map { "\($0.range ?? $0.combo.description) \($0.label)" }
-            == ["b g i project", "n project --none"])
+            == ["g p w project", "n project --none"])
         #expect(c.keyHints(for: "link-go").map { "\($0.range ?? $0.combo.description) \($0.label)" }
-            == ["b g i go with window to"])
+            == ["g p w go with window to"])
     }
 
     @Test func projectKeysMustNotClash() {
-        let projects = "[[projects]]\nname = 'bil'\n[[projects]]\nname = 'nova'\n"
+        let projects = "[[projects]]\nname = 'work'\n[[projects]]\nname = 'nova'\n"
         #expect(throws: ConfigError.self) {
             try TOMLConfigSource.parse(projects + "[mode.p.binding]\n'{project}' = 'project {project}'\nn = 'project --none'")
         }
         #expect(throws: ConfigError.self) {
-            try TOMLConfigSource.parse(projects + "[[projects]]\nname = 'bob'\n[mode.p.binding]\n'{project}' = 'project {project}'")
+            try TOMLConfigSource.parse(projects + "[[projects]]\nname = 'wiki'\n[mode.p.binding]\n'{project}' = 'project {project}'")
         }
         #expect(throws: ConfigError.self) { try TOMLConfigSource.parse("[[projects]]\nname = 'x'\nkey = ''") }
     }

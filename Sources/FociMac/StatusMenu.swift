@@ -1,7 +1,7 @@
 import AppKit
 import FociCore
 
-/// Menu bar item `BIL · w`. The menu is built when opened: projects, workspaces per display, layout,
+/// Menu bar item `WORK · w`. The menu is built when opened: projects, workspaces per display, layout,
 /// and every managed window with its own actions.
 @MainActor
 final class StatusMenu: NSObject, NSMenuDelegate {
@@ -51,8 +51,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         button.attributedTitle = textTitle(engine)
     }
 
-    /// `BIL · [w] x`: the workspace shown on each display (left to right), the focused one bold in brackets.
-    /// The focused window's project follows the active one, dimmed, when they differ: `BIL ⊘ · …` if unlinked.
+    /// `WORK · [w] x`: the workspace shown on each display (left to right), the focused one bold in brackets.
+    /// The focused window's project follows the active one, dimmed, when they differ: `WORK ⊘ · …` if unlinked.
     private func textTitle(_ engine: Engine) -> NSAttributedString {
         let size = NSFont.systemFontSize
         let regular: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: size, weight: .medium)]
@@ -170,7 +170,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
     }
 
-    /// "Chrome — Inbox   [bil]" with a submenu of actions on that window; `markUnlinked`: "[⊘]" if unlinked.
+    /// "Chrome — Inbox   [work]" with a submenu of actions on that window; `markUnlinked`: "[⊘]" if unlinked.
     private func windowItem(
         _ w: Engine.WindowInfo, engine: Engine, projects: [String], markUnlinked: Bool = false
     ) -> NSMenuItem {

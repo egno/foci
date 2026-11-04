@@ -86,7 +86,7 @@ public struct Config: Equatable, Sendable {
 
 /// The menu bar label, after AeroSpace's experimental UI.
 public enum MenuBarStyle: String, CaseIterable, Equatable, Sendable {
-    /// `BIL · [w] x`
+    /// `WORK · [w] x`
     case text
     /// The project, then the workspace shown on each display as a lettered square; the focused one filled.
     case squares

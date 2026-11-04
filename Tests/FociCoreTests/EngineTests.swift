@@ -7,14 +7,14 @@ import Testing
 struct EngineTests {
     @Test func newWindowsAreLinkedByRulesAndPlacedOnTheAppWorkspace() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group iam")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group pet")
         h.ws.open(3, bundle: "com.google.Chrome", title: "Inbox - Gmail")
         h.ws.open(4, bundle: "com.apple.finder")
         h.engine.refresh()
 
-        #expect(h.record(1) == WindowRecord(owner: "bil", workspace: "w", app: "chrome", seq: 0))
-        #expect(h.record(2)?.owner == "iam")
+        #expect(h.record(1) == WindowRecord(owner: "work", workspace: "w", app: "chrome", seq: 0))
+        #expect(h.record(2)?.owner == "pet")
         #expect(h.record(2)?.workspace == "x")
         #expect(h.record(3)?.owner == nil)
         #expect(h.record(3)?.workspace == "w")
@@ -31,10 +31,10 @@ struct EngineTests {
 
     @Test func switchingProjectHidesOtherProjectsAndKeepsUnlinkedWindows() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.ws.open(2, bundle: "com.google.Chrome", title: "iam - Google Chrome")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "pet - Google Chrome")
         h.ws.open(3, bundle: "com.google.Chrome", title: "Personal")
-        h.engine.run("workspace w; project bil")
+        h.engine.run("workspace w; project work")
 
         #expect(h.visible(1))
         #expect(!h.visible(2))
@@ -44,7 +44,7 @@ struct EngineTests {
         // Parked in the bottom-left corner: the laptop is to the right of the main display.
         #expect(h.ws.frame(2) == Rect(x: -799, y: 1439, width: 800, height: 600))
 
-        h.engine.run("project iam")
+        h.engine.run("project pet")
         #expect(!h.visible(1))
         #expect(h.visible(2))
         #expect(h.visible(3))
@@ -53,14 +53,14 @@ struct EngineTests {
 
     @Test func projectSwitchAppliesToBothDisplays() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group bil")
-        h.ws.open(3, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group iam")
-        h.engine.run("workspace x; workspace w; project bil")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group work")
+        h.ws.open(3, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group pet")
+        h.engine.run("workspace x; workspace w; project work")
         #expect(h.visible(1) && h.visible(2) && !h.visible(3))
         #expect(h.ws.frame(2) == Display.right.visibleFrame)
 
-        h.engine.run("project iam")
+        h.engine.run("project pet")
         #expect(!h.visible(1) && !h.visible(2) && h.visible(3))
         // The laptop has no right neighbour: park in its bottom-right corner.
         #expect(h.ws.frame(2).x == Display.right.frame.maxX - 1)
@@ -81,35 +81,35 @@ struct EngineTests {
 
     @Test func focusIsRestoredPerProjectAndWorkspace() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.ws.open(2, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.ws.open(3, bundle: "com.google.Chrome", title: "iam - Google Chrome")
-        h.engine.run("workspace w; project bil")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.ws.open(3, bundle: "com.google.Chrome", title: "pet - Google Chrome")
+        h.engine.run("workspace w; project work")
         #expect(h.ws.focused == WindowID(1))
         h.engine.run("focus next")
         #expect(h.ws.focused == WindowID(2))
-        h.engine.run("project iam")
+        h.engine.run("project pet")
         #expect(h.ws.focused == WindowID(3))
         h.engine.run("project-back-and-forth")
-        #expect(h.engine.activeProject == "bil")
+        #expect(h.engine.activeProject == "work")
         #expect(h.ws.focused == WindowID(2))
     }
 
     @Test func eachProjectGetsBackItsWorkspacesAndWindow() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group bil")
-        h.ws.open(3, bundle: "com.google.Chrome", title: "iam - Google Chrome")
-        h.engine.run("project bil; workspace o; workspace x")
-        h.engine.run("project iam; workspace w; workspace s")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group work")
+        h.ws.open(3, bundle: "com.google.Chrome", title: "pet - Google Chrome")
+        h.engine.run("project work; workspace o; workspace x")
+        h.engine.run("project pet; workspace w; workspace s")
         #expect(h.engine.state.activeWorkspace == [DisplayID(1): "w", DisplayID(2): "s"])
 
-        h.engine.run("project bil")
+        h.engine.run("project work")
         #expect(h.engine.state.activeWorkspace == [DisplayID(1): "o", DisplayID(2): "x"])
         #expect(h.engine.focusedWorkspace == "x")
         #expect(h.ws.focused == WindowID(2))
 
-        h.engine.run("project iam")
+        h.engine.run("project pet")
         #expect(h.engine.state.activeWorkspace == [DisplayID(1): "w", DisplayID(2): "s"])
         #expect(h.engine.focusedWorkspace == "s")
         h.engine.run("workspace w")
@@ -118,58 +118,58 @@ struct EngineTests {
 
     @Test func focusingAHiddenWindowSwitchesToItsProjectAndWorkspace() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group iam")
-        h.engine.run("workspace w; project bil")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group pet")
+        h.engine.run("workspace w; project work")
 
-        h.ws.focused = WindowID(2)  // Cmd-Tab to iam's kitty
+        h.ws.focused = WindowID(2)  // Cmd-Tab to pet's kitty
         h.engine.refresh()
-        #expect(h.engine.activeProject == "iam")
+        #expect(h.engine.activeProject == "pet")
         #expect(h.engine.focusedWorkspace == "x")
         #expect(h.visible(2) && !h.visible(1))
     }
 
     @Test func aStaleFocusOnAParkedWindowDoesNotSwitchBack() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("workspace w; project bil")
-        h.engine.run("project iam")  // nothing to focus: macOS keeps window 1 focused although parked
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("workspace w; project work")
+        h.engine.run("project pet")  // nothing to focus: macOS keeps window 1 focused although parked
         h.engine.refresh()
-        #expect(h.engine.activeProject == "iam")
+        #expect(h.engine.activeProject == "pet")
     }
 
     @Test func linkAndUnlinkByHand() {
         let h = Harness()
         h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
-        h.engine.run("workspace w; project bil")
+        h.engine.run("workspace w; project work")
         h.ws.focused = WindowID(1)
         h.engine.refresh()
 
         h.engine.run("link --active")
-        #expect(h.record(1)?.owner == "bil")
-        h.engine.run("project iam")
+        #expect(h.record(1)?.owner == "work")
+        h.engine.run("project pet")
         #expect(!h.visible(1))
 
-        h.engine.run("project bil")
+        h.engine.run("project work")
         h.ws.focused = WindowID(1)
         h.engine.run("unlink")
         #expect(h.record(1)?.owner == nil)
         #expect(h.record(1)?.manual == true)
-        h.engine.run("project iam")
+        h.engine.run("project pet")
         #expect(h.visible(1))
     }
 
     @Test func linkWithFollowSwitchesToTheProjectWithTheWindow() {
         let h = Harness()
         h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
-        h.ws.open(2, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("workspace w; project bil")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("workspace w; project work")
         h.ws.focused = WindowID(1)
         h.engine.refresh()
 
-        h.engine.run("link --follow iam")
-        #expect(h.record(1)?.owner == "iam")
-        #expect(h.engine.activeProject == "iam")
+        h.engine.run("link --follow pet")
+        #expect(h.record(1)?.owner == "pet")
+        #expect(h.engine.activeProject == "pet")
         #expect(h.visible(1))
         #expect(!h.visible(2))
         #expect(h.ws.focused == WindowID(1))
@@ -177,8 +177,8 @@ struct EngineTests {
 
     @Test func manualUnlinkWinsOverTitleRules() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("workspace w; project bil")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("workspace w; project work")
         h.ws.focused = WindowID(1)
         h.engine.run("unlink")
         h.engine.refresh()
@@ -190,36 +190,36 @@ struct EngineTests {
         h.ws.open(1, bundle: "com.google.Chrome", title: "New Tab")
         h.engine.refresh()
         #expect(h.record(1)?.owner == nil)
-        h.ws.windowList[0].title = "iam - Google Chrome"
+        h.ws.windowList[0].title = "pet - Google Chrome"
         h.engine.refresh()
-        #expect(h.record(1)?.owner == "iam")
+        #expect(h.record(1)?.owner == "pet")
     }
 
     @Test func autostartLaunchesMissingAppOnItsWorkspaceAndLinksTheNewWindow() {
         let h = Harness()
-        h.engine.run("project bil")
+        h.engine.run("project work")
         // cursor lives on c, the focused workspace
-        #expect(h.launcher.commands.map(\.0) == [#"cursor --user-data-dir ~/.cursor-projects/bil "$HOME/src/bil api""#])
-        #expect(h.launcher.commands[0].1 == ["FOCI_PROJECT": "bil"])
+        #expect(h.launcher.commands.map(\.0) == [#"cursor --user-data-dir ~/.cursor-projects/work "$HOME/src/work api""#])
+        #expect(h.launcher.commands[0].1 == ["FOCI_PROJECT": "work"])
 
         h.engine.run("workspace w; workspace c")
         #expect(h.launcher.commands.count == 1)  // pending launch is not repeated
 
         h.ws.open(7, bundle: "com.todesktop.cursor", args: "Cursor")  // args don't tell the project
         h.engine.refresh()
-        #expect(h.record(7)?.owner == "bil")
+        #expect(h.record(7)?.owner == "work")
         #expect(h.record(7)?.workspace == "c")
     }
 
     @Test func launchFocusesExistingWindowOrStartsTheApp() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("project bil; workspace x")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("project work; workspace x")
         h.engine.run("launch chrome")
         #expect(h.engine.focusedWorkspace == "w")
         #expect(h.ws.focused == WindowID(1))
 
-        h.engine.run("project iam; launch chrome")
+        h.engine.run("project pet; launch chrome")
         #expect(h.launcher.commands.last?.0 == "open -na 'Google Chrome' --args --new-window")
 
         h.engine.run("project --none; launch chrome")
@@ -266,16 +266,16 @@ struct EngineTests {
 
     @Test func focusAppCyclesTheAppsWindowsAcrossWorkspaces() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.ws.open(2, bundle: "com.google.Chrome", title: "iam - Google Chrome")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "pet - Google Chrome")
         h.ws.open(3, bundle: "com.google.Chrome", title: "Personal")
-        h.ws.open(4, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group bil")
-        h.engine.run("workspace w; project bil")
+        h.ws.open(4, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group work")
+        h.engine.run("workspace w; project work")
         h.ws.focused = WindowID(3)
         h.engine.run("move-to-workspace c")
         h.ws.focused = WindowID(1)
         h.engine.run("focus-app next")
-        #expect(h.ws.focused == WindowID(3))  // iam's window is skipped
+        #expect(h.ws.focused == WindowID(3))  // pet's window is skipped
         #expect(h.engine.focusedWorkspace == "c")
         #expect(h.visible(3))
         h.engine.run("focus-app next")
@@ -294,12 +294,12 @@ struct EngineTests {
         c.modes["control"] = [KeyCombo(parsing: "space")!: "focus-back"]
         c.repeatKeys["control"] = [KeyCombo(parsing: "space")!]
         let h = Harness(config: c)
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group iam")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.ws.open(2, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group pet")
         h.ws.open(3, bundle: "com.google.Chrome", title: "Personal")
         h.ws.open(4, bundle: "com.google.Chrome", title: "Other")
-        h.engine.run("workspace w; project bil")
-        for id: UInt32 in [4, 3, 2] {  // Cmd-Tab: 4, then 3, then iam's kitty
+        h.engine.run("workspace w; project work")
+        for id: UInt32 in [4, 3, 2] {  // Cmd-Tab: 4, then 3, then pet's kitty
             h.ws.focused = WindowID(id)
             h.engine.refresh()
         }
@@ -322,7 +322,7 @@ struct EngineTests {
         // Leader space after the pause: back to where it started.
         leaderSpace()
         #expect(h.ws.focused == WindowID(2))
-        #expect(h.engine.activeProject == "iam")
+        #expect(h.engine.activeProject == "pet")
         h.engine.run("mode main")
         leaderSpace()
         #expect(h.ws.focused == WindowID(4))
@@ -369,35 +369,35 @@ struct EngineTests {
 
     @Test func floatingWindowKeepsItsFrameAcrossSwitches() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("workspace w; project bil")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("workspace w; project work")
         h.ws.focused = WindowID(1)
         h.engine.run("float")
         let moved = Rect(x: 300, y: 200, width: 500, height: 400)
         h.ws.setFrame(WindowID(1), moved)  // the user drags it
         h.engine.refresh()
-        h.engine.run("project iam; project bil")
+        h.engine.run("project pet; project work")
         #expect(h.ws.frame(1) == moved)
     }
 
     @Test func stateSurvivesRestart() {
         let h = Harness()
         h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
-        h.engine.run("workspace w; project bil")
+        h.engine.run("workspace w; project work")
         h.ws.focused = WindowID(1)
-        h.engine.run("link iam")
+        h.engine.run("link pet")
 
         let h2 = Harness(ws: h.ws, state: h.store.state)
         h2.engine.refresh()
-        #expect(h2.engine.activeProject == "bil")
-        #expect(h2.record(1)?.owner == "iam")
+        #expect(h2.engine.activeProject == "work")
+        #expect(h2.record(1)?.owner == "pet")
         #expect(!h2.visible(1))
     }
 
     @Test func restoreAllPutsParkedWindowsBackOnScreen() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("project iam")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("project pet")
         #expect(!Planner(displays: h.ws.displayList, gap: 0).isOnScreen(h.ws.frame(1)))
         h.engine.restoreAll()
         #expect(h.ws.frame(1) == Display.left.visibleFrame)
@@ -405,10 +405,10 @@ struct EngineTests {
 
     @Test func projectsRemovedFromConfigReleaseTheirWindows() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("project bil")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("project work")
         var c = Config.sample
-        c.projects.removeAll { $0.name == "bil" }
+        c.projects.removeAll { $0.name == "work" }
         let h2 = Harness(config: c, ws: h.ws, state: h.store.state)
         h2.engine.refresh()
         #expect(h2.engine.activeProject == nil)
@@ -417,10 +417,10 @@ struct EngineTests {
 
     @Test func focusedOutsiderIsAWindowOutsideTheActiveProject() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
         h.ws.open(2, bundle: "com.google.Chrome", title: "Personal")
         h.ws.open(3, bundle: "com.apple.finder")
-        h.engine.run("workspace w; project bil")
+        h.engine.run("workspace w; project work")
         #expect(h.engine.focusedOutsider == nil)  // nothing focused
         h.ws.focused = WindowID(1)
         #expect(h.engine.focusedOutsider == nil)  // in the project
@@ -429,14 +429,14 @@ struct EngineTests {
         h.engine.run("project --none")
         #expect(h.engine.focusedOutsider == nil)  // no project, unlinked window: nothing to point out
         h.ws.focused = WindowID(1)
-        #expect(h.engine.focusedOutsider?.owner == "bil")  // another project's, before Foci follows it
+        #expect(h.engine.focusedOutsider?.owner == "work")  // another project's, before Foci follows it
     }
 
     @Test func unlinkWithFollowSwitchesToNoProject() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.ws.open(2, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("workspace w; project bil")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.ws.open(2, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("workspace w; project work")
         h.ws.focused = WindowID(1)
         h.engine.refresh()
 
@@ -450,12 +450,12 @@ struct EngineTests {
 
     @Test func backAndForthToARemovedProjectFails() {
         let h = Harness()
-        h.engine.run("project bil; project iam")
+        h.engine.run("project work; project pet")
         var c = Config.sample
-        c.projects.removeAll { $0.name == "bil" }
+        c.projects.removeAll { $0.name == "work" }
         let h2 = Harness(config: c, ws: h.ws, state: h.store.state)
-        #expect(h2.engine.run("project-back-and-forth") == ["unknown project 'bil'"])
-        #expect(h2.engine.activeProject == "iam")
+        #expect(h2.engine.run("project-back-and-forth") == ["unknown project 'work'"])
+        #expect(h2.engine.activeProject == "pet")
     }
 }
 
@@ -464,13 +464,13 @@ struct FrozenWindowTests {
     @Test func minimizedWindowsKeepTheirLinkAndAreNotMoved() {
         let h = Harness()
         h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
-        h.engine.run("workspace w; project bil")
+        h.engine.run("workspace w; project work")
         h.ws.focused = WindowID(1)
-        h.engine.run("link bil")
+        h.engine.run("link work")
         h.ws.windowList[0].isFrozen = true
         let frame = h.ws.frame(1)
-        h.engine.run("project iam")
-        #expect(h.record(1)?.owner == "bil")
+        h.engine.run("project pet")
+        #expect(h.record(1)?.owner == "work")
         #expect(h.ws.frame(1) == frame)
         h.ws.windowList[0].isFrozen = false
         h.engine.refresh()
@@ -482,26 +482,26 @@ struct FrozenWindowTests {
 struct StartupTests {
     @Test func focusReturningAfterLaunchDoesNotSwitchProject() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("project iam")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("project pet")
         let h2 = Harness(ws: h.ws, state: h.store.state)
         h.ws.focused = nil  // Foci is frontmost right after launch
         h2.engine.refresh()
         h.ws.focused = WindowID(1)  // focus goes back to the previous app
         h2.engine.refresh()
-        #expect(h2.engine.activeProject == "iam")
+        #expect(h2.engine.activeProject == "pet")
     }
 }
 
 @MainActor
 struct TilingTests {
-    /// Three bil Chrome windows on w, tiled.
+    /// Three work Chrome windows on w, tiled.
     func tiled(gap: Double = 0) -> Harness {
         var c = Config.sample
         c.gap = gap
         let h = Harness(config: c)
-        for i: UInt32 in 1...3 { h.ws.open(i, bundle: "com.google.Chrome", title: "bil - Google Chrome") }
-        h.engine.run("workspace w; project bil; layout tiles")
+        for i: UInt32 in 1...3 { h.ws.open(i, bundle: "com.google.Chrome", title: "work - Google Chrome") }
+        h.engine.run("workspace w; project work; layout tiles")
         return h
     }
 
@@ -561,12 +561,12 @@ struct TilingTests {
 
     @Test func layoutIsRememberedPerProject() {
         let h = tiled()
-        h.ws.open(9, bundle: "com.google.Chrome", title: "iam - Google Chrome")
-        h.ws.open(10, bundle: "com.google.Chrome", title: "iam - Google Chrome")
-        h.engine.run("project iam")
+        h.ws.open(9, bundle: "com.google.Chrome", title: "pet - Google Chrome")
+        h.ws.open(10, bundle: "com.google.Chrome", title: "pet - Google Chrome")
+        h.engine.run("project pet")
         #expect(h.engine.layout(of: "w").kind == .maximized)
         #expect(h.ws.frame(9) == Display.left.visibleFrame)
-        h.engine.run("project bil")
+        h.engine.run("project work")
         #expect(h.engine.layout(of: "w").kind == .tiles)
         #expect(h.ws.frame(1).width == Display.left.visibleFrame.width / 3)
     }
@@ -582,9 +582,9 @@ struct TilingTests {
     }
 
     @Test func oldStateFilesWithoutNewKeysStillLoad() throws {
-        let json = #"{"activeProject":"bil","windows":{"7":{"workspace":"w","owner":"bil","seq":3}}}"#
+        let json = #"{"activeProject":"work","windows":{"7":{"workspace":"w","owner":"work","seq":3}}}"#
         let s = try JSONDecoder().decode(State.self, from: Data(json.utf8))
-        #expect(s.activeProject == "bil")
+        #expect(s.activeProject == "work")
         #expect(s.windows[WindowID(7)]?.weight == 1)
         #expect(s.layouts == [:])
     }
@@ -594,11 +594,11 @@ struct TilingTests {
 struct TargetWindowTests {
     @Test func commandsActOnAnExplicitWindowEvenWhenHidden() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
         h.ws.open(2, bundle: "com.google.Chrome", title: "Personal")
-        h.engine.run("workspace w; project bil")
+        h.engine.run("workspace w; project work")
         h.ws.focused = WindowID(1)
-        h.engine.run("project iam")  // window 1 is hidden now, window 2 still shown
+        h.engine.run("project pet")  // window 1 is hidden now, window 2 still shown
 
         h.engine.run("move-to-workspace c", window: WindowID(1))
         #expect(h.record(1)?.workspace == "c")
@@ -606,15 +606,15 @@ struct TargetWindowTests {
         #expect(h.record(2)?.manual == true)
 
         h.engine.run("reveal", window: WindowID(1))
-        #expect(h.engine.activeProject == "bil")
+        #expect(h.engine.activeProject == "work")
         #expect(h.engine.focusedWorkspace == "c")
         #expect(h.ws.focused == WindowID(1))
     }
 
     @Test func revealOfAnUnknownWindowFails() {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("project bil")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("project work")
         h.ws.focused = WindowID(1)
         #expect(h.engine.run("reveal", window: WindowID(99)) == ["no window"])
     }
@@ -737,8 +737,8 @@ struct AccordionTests {
         var c = Config.sample
         c.accordionPadding = padding
         let h = Harness(config: c)
-        for id in UInt32(1)...3 { h.ws.open(id, bundle: "com.google.Chrome", title: "bil - Google Chrome") }
-        h.engine.run("workspace w; project bil")
+        for id in UInt32(1)...3 { h.ws.open(id, bundle: "com.google.Chrome", title: "work - Google Chrome") }
+        h.engine.run("workspace w; project work")
         return h
     }
 
@@ -762,8 +762,8 @@ struct AccordionTests {
         let h = harness(padding: 0)
         #expect(h.ws.frame(2) == Display.left.visibleFrame)
         let one = Harness(config: { var c = Config.sample; c.accordionPadding = 30; return c }())
-        one.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        one.engine.run("workspace w; project bil")
+        one.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        one.engine.run("workspace w; project work")
         #expect(one.ws.frame(1) == Display.left.visibleFrame)
     }
 
@@ -774,8 +774,8 @@ struct AccordionTests {
         var c = Config.sample
         c.accordionPadding = 30
         let h = Harness(config: c, ws: FakeWindowSystem(displays: [tall]))
-        for id in UInt32(1)...2 { h.ws.open(id, bundle: "com.google.Chrome", title: "bil - Google Chrome") }
-        h.engine.run("workspace w; project bil")
+        for id in UInt32(1)...2 { h.ws.open(id, bundle: "com.google.Chrome", title: "work - Google Chrome") }
+        h.engine.run("workspace w; project work")
         h.ws.focused = WindowID(1)
         h.engine.refresh()
         #expect(h.ws.frame(1) == Rect(x: 0, y: 25, width: 1050, height: 1895))
@@ -908,8 +908,8 @@ struct ThreeDisplayTests {
 
     @Test func theMiddleDisplayParksInAFreeOuterCorner() {
         let h = harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
-        h.engine.run("workspace w; project iam")
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome")
+        h.engine.run("workspace w; project pet")
         // Both corners of the middle display touch a neighbour: the left display's outer corner.
         #expect(h.ws.frame(1) == Rect(x: -2560 - 800 + 1, y: 1439, width: 800, height: 600))
         let others = [Self.middle, Self.right].map(\.frame)

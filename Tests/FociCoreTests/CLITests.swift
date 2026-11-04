@@ -5,7 +5,7 @@ import Testing
 
 struct CLIParseTests {
     @Test func bareCommandsBecomeScripts() throws {
-        #expect(try CLIRequest.parse(["project", "bil"]) == .run(script: "project bil", window: nil))
+        #expect(try CLIRequest.parse(["project", "work"]) == .run(script: "project work", window: nil))
         #expect(try CLIRequest.parse(["workspace w; layout tiles"]) == .run(script: "workspace w; layout tiles", window: nil))
         #expect(try CLIRequest.parse(["run", "--window", "42", "unlink"]) == .run(script: "unlink", window: WindowID(42)))
         #expect(try CLIRequest.parse([]) == .help)
@@ -14,11 +14,11 @@ struct CLIParseTests {
 
     @Test func listWindowsFilters() throws {
         var f = CLIRequest.WindowFilter()
-        f.owner = .project("bil")
+        f.owner = .project("work")
         f.workspace = "w"
         f.visibleOnly = true
         #expect(
-            try CLIRequest.parse(["list-windows", "--project", "bil", "--workspace", "w", "--visible", "--json"])
+            try CLIRequest.parse(["list-windows", "--project", "work", "--workspace", "w", "--visible", "--json"])
                 == .listWindows(f, json: true))
     }
 
@@ -34,18 +34,18 @@ struct CLIParseTests {
 struct CLIHandlerTests {
     func harness() -> Harness {
         let h = Harness()
-        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome", pid: 10)
+        h.ws.open(1, bundle: "com.google.Chrome", title: "work - Google Chrome", pid: 10)
         h.ws.open(2, bundle: "com.google.Chrome", title: "Personal", pid: 10)
-        h.ws.open(3, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group iam", pid: 20)
-        h.engine.run("workspace w; project bil")
+        h.ws.open(3, bundle: "net.kovidgoyal.kitty", args: "kitty --instance-group pet", pid: 20)
+        h.engine.run("workspace w; project work")
         return h
     }
 
     @Test func runReportsErrorsWithExitCode() {
         let h = harness()
         let cli = CLIHandler(engine: h.engine)
-        #expect(cli.handle(.run(script: "project iam", window: nil)) == CLIResponse())
-        #expect(h.engine.activeProject == "iam")
+        #expect(cli.handle(.run(script: "project pet", window: nil)) == CLIResponse())
+        #expect(h.engine.activeProject == "pet")
         let bad = cli.handle(.run(script: "project nope", window: nil))
         #expect(bad.exitCode == 1)
         #expect(bad.stderr == "unknown project 'nope'\n")
@@ -62,7 +62,7 @@ struct CLIHandlerTests {
         #expect(ids { _ in } == [1, 2, 3])
         #expect(ids { $0.owner = .active } == [1])
         #expect(ids { $0.owner = .unlinked } == [2])
-        #expect(ids { $0.owner = .project("iam") } == [3])
+        #expect(ids { $0.owner = .project("pet") } == [3])
         #expect(ids { $0.visibleOnly = true } == [1, 2])
         #expect(ids { $0.pid = 20 } == [3])
     }
@@ -70,16 +70,16 @@ struct CLIHandlerTests {
     @Test func statusAndJSON() throws {
         let h = harness()
         let s = CLIHandler(engine: h.engine).status()
-        #expect(s.project == "bil")
+        #expect(s.project == "work")
         #expect(s.focusedWorkspace == "w")
         #expect(s.displays.map(\.workspace) == ["w", "s"])
-        #expect(s.focusedWindow == .init(id: 1, project: "bil"))
+        #expect(s.focusedWindow == .init(id: 1, project: "work"))
         h.ws.focused = WindowID(2)
         #expect(CLIHandler(engine: h.engine).status().focusedWindow == .init(id: 2, project: nil))
 
         let out = CLIHandler(engine: h.engine).handle(.listProjects(json: true)).stdout
         let projects = try JSONDecoder().decode([ProjectDTO].self, from: Data(out.utf8))
-        #expect(projects == [ProjectDTO(name: "bil", active: true, windows: 1), ProjectDTO(name: "iam", active: false, windows: 1)])
+        #expect(projects == [ProjectDTO(name: "work", active: true, windows: 1), ProjectDTO(name: "pet", active: false, windows: 1)])
     }
 
     @Test func workspacesCountWindowsOfTheActiveProject() {
@@ -87,7 +87,7 @@ struct CLIHandlerTests {
         let list = CLIHandler(engine: h.engine).workspaces()
         let w = list.first { $0.name == "w" }
         #expect(w == WorkspaceDTO(name: "w", display: "ext 1", shown: true, focused: true, layout: "maximized", windows: 2))
-        #expect(list.first { $0.name == "x" }?.windows == 0)  // iam's kitty
+        #expect(list.first { $0.name == "x" }?.windows == 0)  // pet's kitty
     }
 
     @Test func tableAlignsColumns() {

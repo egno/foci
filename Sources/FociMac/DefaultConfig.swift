@@ -16,7 +16,7 @@ enum DefaultConfig {
         # 'i3'       mode (circled letter), project, workspace shown on each display (focused one filled), plus the
         #            hidden workspaces that have windows in the active project, dimmed
         # 'squares'  only the shown workspaces
-        # 'text'     BIL · [w] x
+        # 'text'     WORK · [w] x
         menu-bar-style = 'squares'
 
         gap = 0
@@ -89,7 +89,7 @@ enum DefaultConfig {
         #                With {project}: windows that match link to that project.
         # workspace      where new windows of the app go
         # launch         shell command (login shell) starting the app for a project; {project}, and {open} = the
-        #                project's 'open' items, quoted ({ app = 'cursor', open = ['~/src/bil'] })
+        #                project's 'open' items, quoted ({ app = 'cursor', open = ['~/src/work'] })
         # global-launch  shell command starting the app when no project uses it
         # open-url       shell command opening a link for a project; {url} (already quoted), {project}.
         #                Foci focuses the project's window of the app first, so the tab opens there. Without a
@@ -170,21 +170,14 @@ enum DefaultConfig {
         # autostart (default true): when you switch to the app's workspace in this project and the project has
         # no window of the app, launch it.
         # key (default: the first letter of the name): what '{project}' in a binding key stands for.
+        # Examples: rename them to your projects. A project's Chrome window is the one named '<project>'.
         [[projects]]
-        name = 'p'
+        name = 'work'
+        apps = ['chrome', 'cursor', 'kitty', { app = 'dbeaver', autostart = false }]
+
+        [[projects]]
+        name = 'pet'
         apps = ['firefox', { app = 'cursor', autostart = false }, { app = 'kitty', autostart = false }]
-
-        [[projects]]
-        name = 'bil'
-        apps = ['chrome', 'cursor', 'kitty', { app = 'dbeaver', autostart = false }]
-
-        [[projects]]
-        name = 'iam'
-        apps = ['chrome', 'cursor', 'kitty', { app = 'dbeaver', autostart = false }]
-
-        [[projects]]
-        name = 'gc'
-        apps = ['chrome', { app = 'cursor', autostart = false }]
 
         # ---------------------------------------------------------------- Bindings
         # Commands (separate with ';'):

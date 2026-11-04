@@ -23,7 +23,7 @@ public enum CLIRequest: Equatable, Sendable {
 
     public static let usage = """
         usage: foci                          start the app (normally via Foci.app)
-               foci <command script>         e.g. foci project bil; foci 'workspace w; layout tiles'
+               foci <command script>         e.g. foci project work; foci 'workspace w; layout tiles'
                foci run [--window <id>] <script>
                foci open <url>               open a link in this terminal's project browser
                foci status [--json]
@@ -111,7 +111,7 @@ public enum CLIRequest: Equatable, Sendable {
             try done()
             return .subscribe
         default:
-            // `foci project bil` == `foci run project bil`. Validate here for a usage error instead of a no-op.
+            // `foci project work` == `foci run project work`. Validate here for a usage error instead of a no-op.
             let script = args.joined(separator: " ")
             do { _ = try Command.parseScript(script) } catch { throw UsageError(description: "\(error)") }
             return .run(script: script, window: nil)

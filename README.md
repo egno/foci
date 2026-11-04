@@ -66,7 +66,7 @@ A small macOS window manager for working on one project at a time, keyboard firs
   across launches.
 - **Autostart.** When you switch to a workspace and the active project has no window of an app that belongs
   there, Foci launches it (per app, configurable). `launch <app>` does the same on demand, or focuses the window
-  if there is one. A project's `open` items (`{ app = 'cursor', open = ['~/src/bil'] }`) are substituted, quoted,
+  if there is one. A project's `open` items (`{ app = 'cursor', open = ['~/src/work'] }`) are substituted, quoted,
   into the app's `{open}`.
 
 Hidden windows are parked off-screen in a bottom corner of their display, one window at a time (like AeroSpace):
@@ -131,12 +131,12 @@ Don't run Foci and another tiling window manager (AeroSpace, yabai) at the same 
 `~/Library/Application Support/Foci/foci.sock`:
 
 ```sh
-foci project bil                     # any command script, same syntax as key bindings
+foci project work                     # any command script, same syntax as key bindings
 foci 'workspace w; layout tiles'
-foci run --window 12055 'link iam'   # target a window by ID instead of the focused one
+foci run --window 12055 'link pet'   # target a window by ID instead of the focused one
 foci open https://example.com        # open a link in this terminal's project browser (BROWSER='foci open')
 foci status [--json]
-foci list-windows [--json] [--project bil | --unlinked | --active] [--workspace w] [--visible] [--pid 123]
+foci list-windows [--json] [--project work | --unlinked | --active] [--workspace w] [--visible] [--pid 123]
 foci list-workspaces [--json]          # displays left to right, as numbered
 foci list-projects [--json]
 foci subscribe                       # one JSON status line per change, e.g. for sketchybar
