@@ -4,6 +4,24 @@ public enum Direction: Equatable, Sendable {
     case next, prev
 }
 
+/// Which display a display command goes to.
+public enum DisplayTarget: Equatable, Sendable {
+    /// `next|prev`: the display order (`display-order`, then left to right), wrapping around.
+    case cycle(Direction)
+    /// `left|right|up|down`: the nearest display on that side, nothing at the edge.
+    case side(Side)
+    /// `1`, `2`, `main`, `secondary`, `built-in`, `ext 2`, part of the model name.
+    case spec(DisplaySpec)
+
+    public init(parsing s: String) {
+        switch s {
+        case "next": self = .cycle(.next)
+        case "prev": self = .cycle(.prev)
+        default: self = Side(rawValue: s).map(DisplayTarget.side) ?? .spec(DisplaySpec(parsing: s))
+        }
+    }
+}
+
 public enum Command: Equatable, Sendable {
     public enum LayoutChange: Equatable, Sendable { case set(LayoutKind), toggle, toggleOrientation }
     public enum ProjectTarget: Equatable, Sendable { case named(String), none, cycle(Direction), backAndForth }
@@ -12,10 +30,10 @@ public enum Command: Equatable, Sendable {
     case project(ProjectTarget)
     case workspace(WorkspaceTarget)
     case moveToWorkspace(String, follow: Bool)
-    /// Move the focused window to the workspace shown on the neighbouring display.
-    case moveToDisplay(Direction, follow: Bool)
-    case moveWorkspaceToDisplay(Direction)
-    case focusDisplay(Direction)
+    /// Move the focused window to the workspace shown on another display.
+    case moveToDisplay(DisplayTarget, follow: Bool)
+    case moveWorkspaceToDisplay(DisplayTarget)
+    case focusDisplay(DisplayTarget)
     case focusWindow(Direction)
     /// Cycle the windows of the focused window's app in the active project and unlinked ones, any workspace.
     case focusApp(Direction)
@@ -74,6 +92,11 @@ public enum Command: Equatable, Sendable {
         func none() throws {
             if !args.isEmpty { throw ParseError(description: "'\(name)' takes no arguments") }
         }
+        /// The rest of the command: a display name may have spaces (`ext 2`).
+        func displayTarget() throws -> DisplayTarget {
+            guard !args.isEmpty else { throw ParseError(description: "usage: \(name) <display>") }
+            return DisplayTarget(parsing: args.joined(separator: " "))
+        }
         func direction() throws -> Direction {
             switch try one() {
             case "next": return .next
@@ -105,12 +128,10 @@ public enum Command: Equatable, Sendable {
         case "move-to-display":
             let follow = args.contains("--follow")
             let rest = args.filter { $0 != "--follow" }
-            guard rest.count == 1, let dir = ["next": Direction.next, "prev": .prev][rest[0]] else {
-                throw ParseError(description: "usage: move-to-display [--follow] next|prev")
-            }
-            return .moveToDisplay(dir, follow: follow)
-        case "move-workspace-to-display": return .moveWorkspaceToDisplay(try direction())
-        case "focus-display": return .focusDisplay(try direction())
+            guard !rest.isEmpty else { throw ParseError(description: "usage: move-to-display [--follow] <display>") }
+            return .moveToDisplay(DisplayTarget(parsing: rest.joined(separator: " ")), follow: follow)
+        case "move-workspace-to-display": return .moveWorkspaceToDisplay(try displayTarget())
+        case "focus-display": return .focusDisplay(try displayTarget())
         case "focus": return .focusWindow(try direction())
         case "focus-app": return .focusApp(try direction())
         case "focus-back": try none(); return .focusBack

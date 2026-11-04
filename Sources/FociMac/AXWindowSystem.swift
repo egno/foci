@@ -42,9 +42,10 @@ public final class AXWindowSystem: WindowSystem {
         func ax(_ r: NSRect) -> Rect { Rect(x: r.minX, y: primary.frame.height - r.maxY, width: r.width, height: r.height) }
         return screens.map { s in
             let number = s.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+            let id = number?.uint32Value ?? 0
             return Display(
-                id: DisplayID(number?.uint32Value ?? 0), name: s.localizedName, frame: ax(s.frame),
-                visibleFrame: ax(s.visibleFrame), isMain: s == primary)
+                id: DisplayID(id), name: s.localizedName, frame: ax(s.frame),
+                visibleFrame: ax(s.visibleFrame), isMain: s == primary, isBuiltIn: CGDisplayIsBuiltin(id) != 0)
         }
     }
 

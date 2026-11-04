@@ -19,20 +19,20 @@ enum MenuBarLabel {
         var project: String?
         /// The focused window is outside the project: its project, `.some(nil)` if unlinked. nil = in the project.
         var outside: String??
-        /// Per display, main first.
+        /// Per display, left to right.
         var displays: [[Workspace]]
         var warning: Bool
     }
 
     /// Shown workspaces only for `squares`; for `i3` also hidden ones with windows, in name order.
     static func content(_ engine: Engine, style: MenuBarStyle, warning: Bool) -> Content {
-        var displays: [[Workspace]] = []
-        var lastDisplay: String?
-        for ws in CLIHandler(engine: engine).workspaces() where ws.shown || (style == .i3 && ws.windows > 0) {
-            if ws.display != lastDisplay { displays.append([]) }
-            lastDisplay = ws.display
-            displays[displays.count - 1].append(Workspace(name: ws.name, focused: ws.focused, shown: ws.shown))
-        }
+        // By display, not by the display name in the DTO: two monitors of one model share a name.
+        let all = CLIHandler(engine: engine).workspaces()
+        let displays: [[Workspace]] = engine.orderedDisplays.map { d in
+            let names = Set(engine.workspaces(on: d))
+            return all.filter { names.contains($0.name) && ($0.shown || (style == .i3 && $0.windows > 0)) }
+                .map { Workspace(name: $0.name, focused: $0.focused, shown: $0.shown) }
+        }.filter { !$0.isEmpty }
         return Content(
             mode: engine.mode == "main" ? nil : engine.mode, project: engine.activeProject,
             outside: engine.focusedOutsider.map(\.owner), displays: displays, warning: warning)

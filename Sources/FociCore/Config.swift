@@ -8,6 +8,9 @@ public struct Config: Equatable, Sendable {
     public var gap: Double = 0
     /// Maximized windows as an accordion: points of the windows behind the focused one shown at its sides.
     public var accordionPadding: Double = 30
+    /// Display numbers: `main`, `built-in`, `ext 2` or parts of model names, see `Display.ordered`. Unlisted displays follow,
+    /// left to right.
+    public var displayOrder: [String] = []
     /// Workspace name → display spec, see `DisplaySpec`. Every workspace lives on exactly one display.
     public var workspaces: [String: DisplaySpec] = [:]
     /// Initial layout per workspace; `defaultLayout` for the rest. `layout` commands override both at runtime.
@@ -94,11 +97,11 @@ public enum MenuBarStyle: String, CaseIterable, Equatable, Sendable {
 public enum DisplaySpec: Equatable, Sendable {
     /// The display with the menu bar.
     case main
-    /// The first display that isn't main.
+    /// The first display that isn't main, in the display order.
     case secondary
-    /// 1-based index, ordered left to right.
+    /// 1-based index in the display order (`display-order`, then left to right), see `Display.ordered`.
     case index(Int)
-    /// Case-insensitive substring of the display name.
+    /// `built-in`, `ext 2`, or a case-insensitive substring of the model name, see `Display.matches`.
     case name(String)
 
     public init(parsing s: String) {
@@ -109,13 +112,15 @@ public enum DisplaySpec: Equatable, Sendable {
         }
     }
 
-    public func resolve(in displays: [Display]) -> Display? {
-        let sorted = displays.sorted { $0.frame.x < $1.frame.x }
+    public func resolve(in displays: [Display], order: [String] = []) -> Display? {
+        let sorted = Display.ordered(displays, by: order)
         switch self {
         case .main: return displays.first(where: \.isMain)
         case .secondary: return sorted.first { !$0.isMain }
         case .index(let i): return sorted.indices.contains(i - 1) ? sorted[i - 1] : nil
-        case .name(let n): return displays.first { $0.name.localizedCaseInsensitiveContains(n) }
+        case .name(let n):
+            let labels = Display.labels(displays)
+            return Display.spatial(displays).first { $0.matches(n, label: labels[$0.id]) }
         }
     }
 }

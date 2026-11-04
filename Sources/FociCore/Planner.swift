@@ -115,12 +115,26 @@ public struct Planner: Sendable {
     }
 
     /// Off-screen in a bottom corner with 1pt left visible, as AeroSpace does. macOS keeps windows
-    /// partially on screen, so the corner must not touch a neighbouring display.
+    /// partially on screen, so the window must not reach into another display: the bottom-right or bottom-left
+    /// corner of its own display, whichever is free. When neither is (the middle one of three displays in a
+    /// row), the free corner of another display: every window looks parked from the outer corners.
     public func parkedFrame(size: Rect, on display: Display) -> Rect {
-        let f = display.frame
-        let hasRightNeighbour = displays.contains { $0.id != display.id && $0.frame.x >= f.maxX - 1 }
-        let x = hasRightNeighbour ? f.x - size.width + 1 : f.maxX - 1
-        return Rect(x: x, y: f.maxY - 1, width: size.width, height: size.height)
+        // Bottom-right, or bottom-left first when another display is to the right.
+        func corners(_ d: Display) -> [(Display, Rect)] {
+            let f = d.frame
+            let hasRightNeighbour = displays.contains { $0.id != d.id && $0.frame.x >= f.maxX - 1 }
+            let xs = [f.maxX - 1, f.x - size.width + 1]
+            return (hasRightNeighbour ? xs.reversed() : xs).map { x in
+                (d, Rect(x: x, y: f.maxY - 1, width: size.width, height: size.height))
+            }
+        }
+        func spill(_ c: (Display, Rect)) -> Double {
+            displays.filter { $0.id != c.0.id }.reduce(0) { $0 + c.1.overlapArea($1.frame) }
+        }
+        let others = Display.ordered(displays).filter { $0.id != display.id }
+        let candidates = corners(display) + others.flatMap(corners)
+        // The first candidate that spills nowhere, else the one that spills least, own display first.
+        return (candidates.first { spill($0) == 0 } ?? candidates.min { spill($0) < spill($1) }!).1
     }
 
     /// True if the frame looks like a real on-screen position (not parked).

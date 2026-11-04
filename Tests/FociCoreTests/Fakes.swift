@@ -68,7 +68,7 @@ extension Display {
         visibleFrame: Rect(x: 0, y: 25, width: 2560, height: 1415), isMain: true)
     static let right = Display(
         id: DisplayID(2), name: "Color LCD", frame: Rect(x: 2560, y: 0, width: 1512, height: 982),
-        visibleFrame: Rect(x: 2560, y: 0, width: 1512, height: 982), isMain: false)
+        visibleFrame: Rect(x: 2560, y: 0, width: 1512, height: 982), isMain: false, isBuiltIn: true)
 }
 
 extension Config {

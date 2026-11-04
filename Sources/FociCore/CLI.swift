@@ -35,10 +35,10 @@ public enum CLIRequest: Equatable, Sendable {
 
         commands: project <name>|--none|next|prev, project-back-and-forth,
                   workspace <name>|next|prev, workspace-back-and-forth,
-                  move-to-workspace [--follow] <name>, move-to-display [--follow] next|prev,
-                  move-workspace-to-display next|prev,
-                  focus-display next|prev, focus next|prev, focus-app next|prev, focus-back,
-                  move next|prev,
+                  move-to-workspace [--follow] <name>, move-to-display [--follow] <display>,
+                  move-workspace-to-display <display>, focus-display <display>
+                  (<display>: next|prev, left|right|up|down, 1-9, main, built-in, ext 1..N, part of the model name),
+                  focus next|prev, focus-app next|prev, focus-back, move next|prev,
                   layout tiles|maximized|toggle|toggle-orientation, resize +N|-N, balance,
                   link [--follow] <project>|--active, unlink [--follow], float, reveal, launch <app>, mode <name>,
                   reload-config, exec <shell command>
@@ -134,7 +134,10 @@ public struct CLIResponse: Equatable, Codable, Sendable {
 public struct StatusDTO: Equatable, Codable, Sendable {
     public struct DisplayDTO: Equatable, Codable, Sendable {
         public let id: UInt32
+        /// `built-in`, `ext 1`...`ext N`.
         public let name: String
+        /// What macOS calls it: `DELL P2725HE`.
+        public let model: String
         public let main: Bool
         public let workspace: String?
     }
@@ -254,10 +257,10 @@ public struct CLIHandler {
     public func status() -> StatusDTO {
         StatusDTO(
             project: engine.activeProject, mode: engine.mode, focusedWorkspace: engine.focusedWorkspace,
-            displays: engine.displays.sorted { ($0.isMain ? 0 : 1, $0.frame.x) < ($1.isMain ? 0 : 1, $1.frame.x) }
+            displays: engine.orderedDisplays
                 .map {
                     StatusDTO.DisplayDTO(
-                        id: $0.id.raw, name: $0.name, main: $0.isMain, workspace: engine.state.activeWorkspace[$0.id])
+                        id: $0.id.raw, name: engine.label(of: $0), model: $0.name, main: $0.isMain, workspace: engine.state.activeWorkspace[$0.id])
                 },
             focusedWindow: engine.focusedRecord.map { StatusDTO.FocusedWindowDTO(id: $0.id.raw, project: $0.record.owner) })
     }
@@ -286,11 +289,11 @@ public struct CLIHandler {
     public func workspaces() -> [WorkspaceDTO] {
         let shown = Set(engine.state.activeWorkspace.values)
         let windows = engine.windowList()
-        return engine.displays.sorted { ($0.isMain ? 0 : 1, $0.frame.x) < ($1.isMain ? 0 : 1, $1.frame.x) }
+        return engine.orderedDisplays
             .flatMap { d in
                 engine.workspaces(on: d).map { ws in
                     WorkspaceDTO(
-                        name: ws, display: d.name, shown: shown.contains(ws), focused: ws == engine.focusedWorkspace,
+                        name: ws, display: engine.label(of: d), shown: shown.contains(ws), focused: ws == engine.focusedWorkspace,
                         layout: engine.layout(of: ws).kind.rawValue,
                         windows: windows.filter {
                             $0.record.workspace == ws && !$0.facts.isFrozen

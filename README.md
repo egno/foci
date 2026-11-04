@@ -10,7 +10,12 @@ A small macOS window manager for working on one project at a time, keyboard firs
   shows one workspace at a time. Workspace names are shared by all projects: `w` is "web" in every project and
   shows only the active project's browser windows (plus unlinked ones). Displays are followed as they come and
   go: a reconnected display shows its last workspace again, and the focused workspace follows its windows off a
-  disconnected one.
+  disconnected one. Displays are called `built-in` (the laptop's screen) and `ext 1`…`ext N` (the others, from the
+  left), in the menu, the CLI and the config; the model name (`dell`) works too. They are numbered from the left
+  (then top to bottom), or in the order of `display-order = ['built-in', 'ext 2', 'ext 1']` (unlisted ones follow),
+  the same order everywhere: the menu bar, `1`–`3` after the leader, `focus-display 2`, `next|prev`, `x = '2'` in
+  `[workspaces]`. Display commands take `next|prev` (wrapping), `left|right|up|down` (the nearest display on that
+  side), a number, `main`, a name (`ext 2`) or part of the model name.
 - **Maximized by default, tiles on demand.** Each workspace is `maximized` (windows fill the display as an
   accordion, like AeroSpace's: the edges of the windows behind the focused one show at its left and right, also on portrait displays,
   `accordion-padding` points, 30; `focus next|prev` cycles) or `tiles` (side by side on landscape, stacked on portrait; `move`, `resize`, `balance`). The layout is
@@ -33,9 +38,10 @@ A small macOS window manager for working on one project at a time, keyboard firs
   | arrows | focus |
   | `enter` | next window of the focused app (active project and unlinked, any workspace; repeats) |
   | `tab` | next display |
+  | `1`–`3` | display by number, from the left |
   | `space` | +project: the same keys for projects (a project's key, `space` last project, `.` move window, `,` go with window, `n` no project, arrows cycle) |
-  | `.` | +move (arrows, `tab` window to next display, `space` workspace to next display) |
-  | `,` | +go with window |
+  | `.` | +move (arrows, `tab` window to next display, `1`–`3` to that display, `space` workspace to next display) |
+  | `,` | +go with window (also `tab`, `1`–`3`) |
   | `/` | +launch: launch or focus the active project's window of an app, keyed by its workspace |
   | `'` | +layout (`enter` toggle) |
   | `;` | +config (`r` reload, `e` edit) |
@@ -53,7 +59,7 @@ A small macOS window manager for working on one project at a time, keyboard firs
   of the focused display lists the next keys, titled with the path (`Foci › Move`). Submenus show as
   `+label`. Keys that do the same with their own key show as one row: `a-z → workspace`. Name things with
   `[mode.<name>] label = '...'` and `key = { run = '...', label = '...' }`.
-- **Menu bar**, like AeroSpace's experimental UI: the project, the workspace shown on each display as a
+- **Menu bar**, like AeroSpace's experimental UI: the project, the workspace shown on each display (left to right) as a
   lettered square (focused one filled), hidden workspaces with windows dimmed, and the mode while in a
   submenu. `menu-bar-style = 'i3' | 'squares' | 'text'`. The menu lists projects, one submenu of workspaces per
   display, the layout of the focused workspace and the windows. ⌘-drag the item where you want it; the place sticks
@@ -63,7 +69,9 @@ A small macOS window manager for working on one project at a time, keyboard firs
   if there is one. A project's `open` items (`{ app = 'cursor', open = ['~/src/bil'] }`) are substituted, quoted,
   into the app's `{open}`.
 
-Hidden windows are parked off-screen in a bottom corner of their display, one window at a time (like AeroSpace).
+Hidden windows are parked off-screen in a bottom corner of their display, one window at a time (like AeroSpace):
+the corner that doesn't reach into another display. The middle one of three displays in a row has no such corner,
+so its windows park in the free outer corner of a neighbour.
 This lets windows of one process (one Chrome) belong to different projects. On quit Foci puts every window
 back on screen.
 
@@ -102,7 +110,7 @@ foci run --window 12055 'link iam'   # target a window by ID instead of the focu
 foci open https://example.com        # open a link in this terminal's project browser (BROWSER='foci open')
 foci status [--json]
 foci list-windows [--json] [--project bil | --unlinked | --active] [--workspace w] [--visible] [--pid 123]
-foci list-workspaces [--json]
+foci list-workspaces [--json]          # displays left to right, as numbered
 foci list-projects [--json]
 foci subscribe                       # one JSON status line per change, e.g. for sketchybar
 ```

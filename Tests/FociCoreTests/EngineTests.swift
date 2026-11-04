@@ -259,7 +259,9 @@ struct EngineTests {
         h.engine.run("focus-display prev; move-to-display --follow next")
         #expect(h.engine.focusedWorkspace == "s")
         #expect(h.ws.frame(1) == Display.right.visibleFrame)
-        #expect(throws: Command.ParseError.self) { try Command.parse("move-to-display up") }
+        #expect(throws: Command.ParseError.self) { try Command.parse("move-to-display") }
+        #expect(throws: Command.ParseError.self) { try Command.parse("focus-display") }
+        #expect((try? Command.parse("focus-display ext 1")) == .focusDisplay(.spec(.name("ext 1"))))
     }
 
     @Test func focusAppCyclesTheAppsWindowsAcrossWorkspaces() {
@@ -778,5 +780,165 @@ struct AccordionTests {
         h.engine.refresh()
         #expect(h.ws.frame(1) == Rect(x: 0, y: 25, width: 1050, height: 1895))
         #expect(h.ws.frame(2) == Rect(x: 30, y: 25, width: 1050, height: 1895))
+    }
+}
+
+/// Three monitors of one height in a row, the main one in the middle; the same model left and right.
+@MainActor
+struct ThreeDisplayTests {
+    static let left = Display(
+        id: DisplayID(11), name: "DELL U2723QE", frame: Rect(x: -2560, y: 0, width: 2560, height: 1440),
+        visibleFrame: Rect(x: -2560, y: 0, width: 2560, height: 1440), isMain: false)
+    static let middle = Display(
+        id: DisplayID(12), name: "LG HDR 4K", frame: Rect(x: 0, y: 0, width: 2560, height: 1440),
+        visibleFrame: Rect(x: 0, y: 25, width: 2560, height: 1415), isMain: true)
+    static let right = Display(
+        id: DisplayID(13), name: "DELL U2723QE", frame: Rect(x: 2560, y: 0, width: 2560, height: 1440),
+        visibleFrame: Rect(x: 2560, y: 0, width: 2560, height: 1440), isMain: false)
+
+    func harness() -> Harness {
+        var c = Config.sample
+        c.workspaces = ["w": .main, "c": .main, "x": .secondary, "s": .index(3)]
+        // Not in display order: the order comes from the frames.
+        return Harness(config: c, ws: FakeWindowSystem(displays: [Self.middle, Self.right, Self.left]))
+    }
+
+    @Test func displaysAreNumberedFromTheLeft() {
+        let h = harness()
+        h.engine.refresh()
+        #expect(h.engine.orderedDisplays.map(\.id) == [Self.left.id, Self.middle.id, Self.right.id])
+        #expect(h.engine.display(of: "x").id == Self.left.id)  // secondary: the first other one from the left
+        #expect(h.engine.display(of: "s").id == Self.right.id)
+        #expect(h.engine.state.activeWorkspace == [Self.left.id: "x", Self.middle.id: "c", Self.right.id: "s"])
+        #expect(CLIHandler(engine: h.engine).status().displays.map(\.workspace) == ["x", "c", "s"])
+    }
+
+    @Test func focusDisplayByNumberSideAndCycle() {
+        let h = harness()
+        h.engine.refresh()
+        h.engine.run("focus-display 3")
+        #expect(h.engine.focusedWorkspace == "s")
+        h.engine.run("focus-display left")
+        #expect(h.engine.focusedWorkspace == "c")
+        h.engine.run("focus-display left")
+        #expect(h.engine.focusedWorkspace == "x")
+        // Nothing further left; next|prev wrap around.
+        h.engine.run("focus-display left")
+        #expect(h.engine.focusedWorkspace == "x")
+        h.engine.run("focus-display prev")
+        #expect(h.engine.focusedWorkspace == "s")
+        h.engine.run("focus-display main")
+        #expect(h.engine.focusedWorkspace == "c")
+        h.engine.run("focus-display 4")
+        #expect(h.engine.focusedWorkspace == "c")
+    }
+
+    @Test func moveWindowAndWorkspaceToADisplayByNumber() {
+        let h = harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
+        h.engine.run("workspace w")
+        h.ws.focused = WindowID(1)
+        h.engine.run("move-to-display 3")
+        #expect(h.record(1)?.workspace == "s")
+        #expect(h.ws.frame(1) == Self.right.visibleFrame)
+        #expect(h.engine.focusedWorkspace == "w")
+        h.ws.focused = WindowID(1)
+        h.engine.run("move-to-display --follow 1")
+        #expect(h.record(1)?.workspace == "x")
+        #expect(h.engine.focusedWorkspace == "x")
+        #expect(h.ws.frame(1) == Self.left.visibleFrame)
+
+        h.engine.run("workspace w; move-workspace-to-display 3")
+        #expect(h.engine.display(of: "w").id == Self.right.id)
+        #expect(h.engine.state.activeWorkspace[Self.right.id] == "w")
+        #expect(h.engine.state.activeWorkspace[Self.middle.id] == "c")
+        #expect(h.engine.focusedWorkspace == "w")
+    }
+
+    @Test func displayOrderFromTheConfig() {
+        var c = Config.sample
+        c.displayOrder = ["main", "dell", "nothing like it", "dell"]
+        c.workspaces = ["w": .main, "x": .secondary, "s": .index(3)]
+        let h = Harness(config: c, ws: FakeWindowSystem(displays: [Self.middle, Self.right, Self.left]))
+        h.engine.refresh()
+        // Main first, then the two monitors of one model left to right; an entry matching nothing is skipped.
+        #expect(h.engine.orderedDisplays.map(\.id) == [Self.middle.id, Self.left.id, Self.right.id])
+        #expect(h.engine.display(of: "x").id == Self.left.id)
+        #expect(h.engine.display(of: "s").id == Self.right.id)
+        h.engine.run("focus-display 3")
+        #expect(h.engine.focusedWorkspace == "s")
+        h.engine.run("focus-display next")
+        #expect(h.engine.display(of: h.engine.focusedWorkspace).id == Self.middle.id)
+        // Sides still follow the arrangement, not the numbers.
+        h.engine.run("focus-display left")
+        #expect(h.engine.display(of: h.engine.focusedWorkspace).id == Self.left.id)
+        #expect(CLIHandler(engine: h.engine).status().displays.map(\.id) == [12, 11, 13])
+
+        // Partly listed: the rest follow left to right.
+        #expect(Display.ordered([Self.left, Self.middle, Self.right], by: ["right"]).map(\.id.raw) == [11, 12, 13])
+        #expect(Display.ordered([Self.left, Self.middle, Self.right], by: ["lg"]).map(\.id.raw) == [12, 11, 13])
+    }
+
+    @Test func externalDisplaysAreNamedExtFromTheLeft() {
+        let laptop = Display(
+            id: DisplayID(14), name: "Built-in Retina Display", frame: Rect(x: 5120, y: 0, width: 1512, height: 982),
+            visibleFrame: Rect(x: 5120, y: 0, width: 1512, height: 982), isMain: false, isBuiltIn: true)
+        var c = Config.sample
+        // Names, not numbers: 'ext 2' is the second monitor from the left whatever the order.
+        c.displayOrder = ["built-in", "ext2"]
+        c.workspaces = ["w": .main, "x": .name("ext 1"), "s": .name("Built-In")]
+        let h = Harness(config: c, ws: FakeWindowSystem(displays: [Self.middle, laptop, Self.right, Self.left]))
+        h.engine.refresh()
+        #expect(h.engine.orderedDisplays.map { h.engine.label(of: $0) } == ["built-in", "ext 2", "ext 1", "ext 3"])
+        #expect(h.engine.display(of: "x").id == Self.left.id)
+        #expect(h.engine.display(of: "s").id == laptop.id)
+        h.engine.run("focus-display ext 3")
+        #expect(h.engine.display(of: h.engine.focusedWorkspace).id == Self.right.id)
+        h.engine.run("focus-display ext-1")
+        #expect(h.engine.display(of: h.engine.focusedWorkspace).id == Self.left.id)
+        let status = CLIHandler(engine: h.engine).status().displays
+        #expect(status.map(\.name) == ["built-in", "ext 2", "ext 1", "ext 3"])
+        #expect(status.map(\.model) == ["Built-in Retina Display", "LG HDR 4K", "DELL U2723QE", "DELL U2723QE"])
+        // The model name still works; 'ext 1' doesn't match 'ext 10'-like prefixes, only the whole name.
+        #expect(DisplaySpec.name("lg").resolve(in: h.engine.displays)?.id == Self.middle.id)
+        #expect(DisplaySpec.name("ext").resolve(in: h.engine.displays) == nil)
+        // No laptop screen (clamshell): only ext.
+        #expect(Display.labels([Self.left, Self.middle]) == [Self.left.id: "ext 1", Self.middle.id: "ext 2"])
+    }
+
+    @Test func theMiddleDisplayParksInAFreeOuterCorner() {
+        let h = harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "bil - Google Chrome")
+        h.engine.run("workspace w; project iam")
+        // Both corners of the middle display touch a neighbour: the left display's outer corner.
+        #expect(h.ws.frame(1) == Rect(x: -2560 - 800 + 1, y: 1439, width: 800, height: 600))
+        let others = [Self.middle, Self.right].map(\.frame)
+        #expect(others.allSatisfy { h.ws.frame(1).overlapArea($0) == 0 })
+    }
+
+    @Test func parkingPrefersTheOwnDisplaysFreeCorner() {
+        let laptop = Display(
+            id: DisplayID(14), name: "Color LCD", frame: Rect(x: 2560, y: 0, width: 1512, height: 982),
+            visibleFrame: Rect(x: 2560, y: 0, width: 1512, height: 982), isMain: false)
+        let p = Planner(displays: [Self.left, Self.middle, laptop], gap: 0)
+        let size = Rect(x: 0, y: 0, width: 800, height: 600)
+        // The laptop is shorter: the middle display's bottom-right corner is free.
+        #expect(p.parkedFrame(size: size, on: Self.middle) == Rect(x: 2559, y: 1439, width: 800, height: 600))
+        #expect(p.parkedFrame(size: size, on: laptop) == Rect(x: 2560 + 1512 - 1, y: 981, width: 800, height: 600))
+        #expect(p.parkedFrame(size: size, on: Self.left) == Rect(x: -2560 - 799, y: 1439, width: 800, height: 600))
+    }
+
+    @Test func sidesFollowTheArrangement() {
+        // A laptop under the main display, a monitor to its right.
+        let laptop = Display(
+            id: DisplayID(14), name: "Color LCD", frame: Rect(x: 500, y: 1440, width: 1512, height: 982),
+            visibleFrame: Rect(x: 500, y: 1440, width: 1512, height: 982), isMain: false)
+        let all = [Self.middle, Self.right, laptop]
+        #expect(Self.middle.neighbour(.down, in: all)?.id == laptop.id)
+        #expect(laptop.neighbour(.up, in: all)?.id == Self.middle.id)
+        #expect(Self.middle.neighbour(.right, in: all)?.id == Self.right.id)
+        #expect(laptop.neighbour(.right, in: all)?.id == Self.right.id)
+        #expect(Self.middle.neighbour(.left, in: all) == nil)
+        #expect(Display.ordered(all).map(\.id) == [Self.middle.id, laptop.id, Self.right.id])
     }
 }

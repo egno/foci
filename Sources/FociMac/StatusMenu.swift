@@ -51,7 +51,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         button.attributedTitle = textTitle(engine)
     }
 
-    /// `BIL · [w] x`: the workspace shown on each display (main first), the focused one bold in brackets.
+    /// `BIL · [w] x`: the workspace shown on each display (left to right), the focused one bold in brackets.
     /// The focused window's project follows the active one, dimmed, when they differ: `BIL ⊘ · …` if unlinked.
     private func textTitle(_ engine: Engine) -> NSAttributedString {
         let size = NSFont.systemFontSize
@@ -77,10 +77,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         return title
     }
 
-    /// Main display first, then left to right.
-    private func sortedDisplays(_ engine: Engine) -> [Display] {
-        engine.displays.sorted { ($0.isMain ? 0 : 1, $0.frame.x) < ($1.isMain ? 0 : 1, $1.frame.x) }
-    }
+    /// Left to right, as numbered in 'focus-display 1'.
+    private func sortedDisplays(_ engine: Engine) -> [Display] { engine.orderedDisplays }
 
     // MARK: - NSMenuDelegate
 
@@ -115,7 +113,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         // laptop screen.
         let displays = sortedDisplays(engine)
         menu.addItem(header("Workspaces"))
-        for d in displays {
+        for (n, d) in displays.enumerated() {
             let active = engine.state.activeWorkspace[d.id]
             let sub = NSMenu()
             sub.autoenablesItems = false
@@ -126,9 +124,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             }
             if displays.count > 1, active == engine.focusedWorkspace {
                 sub.addItem(.separator())
-                sub.addItem(command("Move \"\(engine.focusedWorkspace)\" to Next Display", "move-workspace-to-display next"))
+                for (m, other) in displays.enumerated() where other.id != d.id {
+                    sub.addItem(command(
+                        "Move \"\(engine.focusedWorkspace)\" to \(m + 1)  \(engine.label(of: other))", "move-workspace-to-display \(m + 1)"))
+                }
             }
-            let item = NSMenuItem(title: "\(d.name): \(active ?? "–")", action: nil, keyEquivalent: "")
+            // Numbered as in 'focus-display 1': two monitors of one model have the same name.
+            let number = displays.count > 1 ? "\(n + 1)  " : ""
+            let item = NSMenuItem(title: "\(number)\(engine.label(of: d)): \(active ?? "–")", action: nil, keyEquivalent: "")
+            item.toolTip = d.name
             if active == engine.focusedWorkspace, displays.count > 1 { item.title += "  ◂" }
             item.submenu = sub
             menu.addItem(item)

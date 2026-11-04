@@ -59,7 +59,15 @@ enum DefaultConfig {
         # project has no browser, or there is no active project, using its 'global-open-url'.
         browser = 'chrome'
 
-        # Workspace -> display: 'main' (menu bar), 'secondary', 1-based index from the left, or part of the name.
+        # Displays are called 'built-in' (the laptop's screen) and 'ext 1'...'ext N' (the others, from the left);
+        # 'main' is the one with the menu bar, and part of the model name ('dell') works too.
+        # Display numbers (menu bar, 'focus-display 2', 'next|prev', workspaces below): these displays first, in
+        # this order, then the rest left to right. Empty: all left to right.
+        # display-order = ['built-in', 'ext 2', 'ext 1']
+
+        # Workspace -> display: 'main' (menu bar), 'secondary' (the first other one in display order), a display
+        # number (see 'display-order'), 'built-in', 'ext 2', or part of the model name. With three displays give the third one its workspaces
+        # by number.
         # Long form: x = { display = 'secondary', layout = 'tiles', orientation = 'vertical' }
         # Workspaces not listed here live on the display where they were first used.
         [workspaces]
@@ -183,8 +191,10 @@ enum DefaultConfig {
         #   project <name>|--none|next|prev    project-back-and-forth
         #   workspace <name>|next|prev         workspace-back-and-forth
         #   move-to-workspace [--follow] <name>
-        #   move-to-display [--follow] next|prev   the focused window to the other display's workspace
-        #   move-workspace-to-display next|prev    focus-display next|prev
+        #   move-to-display [--follow] <display>   the focused window to the workspace shown on that display
+        #   move-workspace-to-display <display>    focus-display <display>
+        #     <display>: next|prev (left to right, wrapping), left|right|up|down (the nearest one on that side),
+        #     1-9 (display order, as in the menu bar), main, secondary, built-in, ext 1..N, part of the model name
         #   focus next|prev                    cycle windows of the focused workspace
         #   focus-app next|prev                cycle the focused app's windows (active project, unlinked), any workspace
         #   focus-back                         the previously focused window, in any project and workspace; with
@@ -224,6 +234,10 @@ enum DefaultConfig {
         leader = 'workspace-back-and-forth'
         enter = { run = 'focus-app next', label = 'next window of the app', repeat = true }
         tab = 'focus-display next'
+        # Digits are displays, numbered from the left as in the menu bar.
+        1 = { run = 'focus-display 1', label = 'display 1' }
+        2 = { run = 'focus-display 2', label = 'display 2' }
+        3 = { run = 'focus-display 3', label = 'display 3' }
 
         # Window order is one row (tiles side by side) or one column (stacked/maximized). Letters are workspaces,
         # so focus is on the arrows.
@@ -267,6 +281,9 @@ enum DefaultConfig {
         up = { run = 'move prev', repeat = true }
         tab = { run = 'move-to-display next', label = 'to next display' }
         space = { run = 'move-workspace-to-display next', label = 'workspace to next display' }
+        1 = { run = 'move-to-display 1', label = 'to display 1' }
+        2 = { run = 'move-to-display 2', label = 'to display 2' }
+        3 = { run = 'move-to-display 3', label = 'to display 3' }
 
         [mode.go]
         label = 'Go with window'
@@ -274,6 +291,9 @@ enum DefaultConfig {
         [mode.go.binding]
         '{workspace}' = 'move-to-workspace --follow {workspace}'
         tab = { run = 'move-to-display --follow next', label = 'to next display' }
+        1 = { run = 'move-to-display --follow 1', label = 'to display 1' }
+        2 = { run = 'move-to-display --follow 2', label = 'to display 2' }
+        3 = { run = 'move-to-display --follow 3', label = 'to display 3' }
 
         [mode.layout]
         label = 'Layout'

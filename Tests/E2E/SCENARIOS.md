@@ -97,7 +97,9 @@ Shared assertions, used below by name (tolerance ±1 pt):
 
 - **shown(W)**: `visible: true` and W's frame is on its workspace's display, per the layout.
 - **parked(W)**: `visible: false` and W's frame is off-screen in a bottom corner of its workspace's display:
-  `x = display.maxX - 1`, or `x = display.x - width + 1` when another display is to the right, `y = display.maxY - 1`.
+  `x = display.maxX - 1`, or `x = display.x - width + 1` when another display is to the right, `y = display.maxY - 1`;
+  the other corner if that one reaches into another display, and with neither free (the middle of three displays
+  in a row) a free outer corner of another display.
   No visible part of W on any display except a 1pt wide strip. macOS pulls a parked window up by its title bar
   (measured: `y = maxY - 28`), so the runner accepts `y` between `maxY - 31` and `maxY`.
 - **maximized(W)**: frame = the display's visible frame inset by `gap`.

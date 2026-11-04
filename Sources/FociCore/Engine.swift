@@ -71,7 +71,7 @@ public final class Engine {
 
     public func display(of workspace: String) -> Display {
         if let id = state.workspaceDisplay[workspace], let d = displays.first(where: { $0.id == id }) { return d }
-        if let d = config.workspaces[workspace]?.resolve(in: displays) { return d }
+        if let d = config.workspaces[workspace]?.resolve(in: displays, order: config.displayOrder) { return d }
         return mainDisplay
     }
 
@@ -140,10 +140,23 @@ public final class Engine {
         .sorted { ($0.record.workspace, $0.record.seq) < ($1.record.workspace, $1.record.seq) }
     }
 
-    private func neighbour(of d: Display, _ dir: Direction) -> Display {
-        let sorted = displays.sorted { $0.frame.x < $1.frame.x }
-        let i = sorted.firstIndex { $0.id == d.id } ?? 0
-        return sorted[(i + (dir == .next ? 1 : -1) + sorted.count) % sorted.count]
+    /// The display's name for people: `built-in`, `ext 1`...`ext N` (see `Display.labels`).
+    public func label(of d: Display) -> String { Display.labels(displays)[d.id] ?? d.name }
+
+    /// The displays in the one order used everywhere: `display-order`, then left to right, then top to bottom.
+    public var orderedDisplays: [Display] { Display.ordered(displays, by: config.displayOrder) }
+
+    /// The display a display command goes to from `d`; nil if there is none (no display on that side, an
+    /// unknown name or number).
+    public func display(_ target: DisplayTarget, from d: Display) -> Display? {
+        switch target {
+        case .cycle(let dir):
+            let sorted = orderedDisplays
+            let i = sorted.firstIndex { $0.id == d.id } ?? 0
+            return sorted[(i + (dir == .next ? 1 : -1) + sorted.count) % sorted.count]
+        case .side(let side): return d.neighbour(side, in: displays)
+        case .spec(let spec): return spec.resolve(in: displays, order: config.displayOrder)
+        }
     }
 
     // MARK: - Sync
@@ -224,7 +237,7 @@ public final class Engine {
     private func normalizeWorkspaces() {
         let present = Set(displays.map(\.id))
         if present != knownDisplays {
-            if !knownDisplays.isEmpty { onLog?("displays: " + displays.map(\.name).joined(separator: ", ")) }
+            if !knownDisplays.isEmpty { onLog?("displays: " + orderedDisplays.map { "\(label(of: $0)) (\($0.name))" }.joined(separator: ", ")) }
             knownDisplays = present
         }
         rememberShownWorkspaces()  // as last laid out, before a gone display's entry is dropped
@@ -235,7 +248,7 @@ public final class Engine {
         if let ws = state.focusedWorkspace, let d = focusedDisplay, !present.contains(d) {
             state.activeWorkspace[display(of: ws).id] = ws
         }
-        for (i, d) in displays.enumerated() where state.activeWorkspace[d.id] == nil {
+        for (i, d) in orderedDisplays.enumerated() where state.activeWorkspace[d.id] == nil {
             let shown = Set(state.activeWorkspace.values)
             let candidates = (state.displayHistory[d.id] ?? []) + workspaces(on: d)
             if let ws = candidates.first(where: { display(of: $0).id == d.id && !shown.contains($0) }) {
@@ -443,20 +456,20 @@ public final class Engine {
             apply()
             if follow { focus(id) } else { focusBest(in: focusedWorkspace) }
 
-        case .moveToDisplay(let dir, let follow):
+        case .moveToDisplay(let target, let follow):
             guard let id = focusedManagedWindow() else { return "no focused window" }
             let from = display(of: state.windows[id]?.workspace ?? focusedWorkspace)
-            let to = neighbour(of: from, dir)
+            guard let to = display(target, from: from) else { return "no such display" }
             guard to.id != from.id, let ws = state.activeWorkspace[to.id] else { return nil }
             state.windows[id]?.workspace = ws
             if follow { state.focusedWorkspace = ws }
             apply()
             if follow { focus(id) } else { focusBest(in: focusedWorkspace) }
 
-        case .moveWorkspaceToDisplay(let dir):
+        case .moveWorkspaceToDisplay(let target):
             let ws = focusedWorkspace
             let from = display(of: ws)
-            let to = neighbour(of: from, dir)
+            guard let to = display(target, from: from) else { return "no such display" }
             guard to.id != from.id else { return nil }
             state.workspaceDisplay[ws] = to.id
             state.activeWorkspace[from.id] = nil
@@ -465,8 +478,8 @@ public final class Engine {
             apply()
             focusBest(in: ws)
 
-        case .focusDisplay(let dir):
-            let to = neighbour(of: display(of: focusedWorkspace), dir)
+        case .focusDisplay(let target):
+            guard let to = display(target, from: display(of: focusedWorkspace)) else { return "no such display" }
             guard let ws = state.activeWorkspace[to.id] else { return nil }
             state.focusedWorkspace = ws
             focusBest(in: ws)

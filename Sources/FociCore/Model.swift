@@ -57,6 +57,10 @@ public struct Rect: Equatable, Codable, Sendable, CustomStringConvertible {
     public var description: String { "(\(Int(x)),\(Int(y)) \(Int(width))x\(Int(height)))" }
 
     public func contains(x px: Double, y py: Double) -> Bool { px >= x && px < maxX && py >= y && py < maxY }
+    /// Area of the overlap with another rectangle, 0 if they don't overlap.
+    public func overlapArea(_ o: Rect) -> Double {
+        max(0, min(maxX, o.maxX) - max(x, o.x)) * max(0, min(maxY, o.maxY) - max(y, o.y))
+    }
     public func insetBy(_ d: Double) -> Rect { Rect(x: x + d, y: y + d, width: width - 2 * d, height: height - 2 * d) }
     public func isClose(to other: Rect, tolerance: Double = 1) -> Bool {
         abs(x - other.x) <= tolerance && abs(y - other.y) <= tolerance
@@ -72,10 +76,95 @@ public struct Display: Equatable, Sendable {
     public let visibleFrame: Rect
     /// The display with the menu bar.
     public let isMain: Bool
+    /// The laptop's own screen.
+    public let isBuiltIn: Bool
 
-    public init(id: DisplayID, name: String, frame: Rect, visibleFrame: Rect, isMain: Bool) {
+    public init(id: DisplayID, name: String, frame: Rect, visibleFrame: Rect, isMain: Bool, isBuiltIn: Bool = false) {
         self.id = id; self.name = name; self.frame = frame; self.visibleFrame = visibleFrame; self.isMain = isMain
+        self.isBuiltIn = isBuiltIn
     }
+
+    /// The names Foci shows and matches: `built-in` for the laptop's screen, `ext 1`...`ext N` for the others,
+    /// left to right (then top to bottom). Unlike the model name (`name`) they tell two monitors of one model apart.
+    public static func labels(_ displays: [Display]) -> [DisplayID: String] {
+        var result: [DisplayID: String] = [:]
+        var n = 0
+        for d in spatial(displays) {
+            if d.isBuiltIn {
+                result[d.id] = "built-in"
+            } else {
+                n += 1
+                result[d.id] = "ext \(n)"
+            }
+        }
+        return result
+    }
+
+    /// A display named in the config or a command: `main`, its label (`built-in`, `ext 2`; `ext2` and `ext-2`
+    /// too, so it fits in a command), or part of its model name.
+    func matches(_ entry: String, label: String?) -> Bool {
+        func normalized(_ s: String) -> String { s.lowercased().filter { !" -_".contains($0) } }
+        let e = entry.lowercased()
+        if e == "main" || e == "primary" { return isMain }
+        if let label, normalized(entry) == normalized(label) { return true }
+        // 'built-in' names the laptop's screen, not a monitor whose model name contains it.
+        if normalized(entry) == "builtin" { return isBuiltIn }
+        return name.localizedCaseInsensitiveContains(entry)
+    }
+
+    static func spatial(_ displays: [Display]) -> [Display] {
+        displays.sorted { ($0.frame.x, $0.frame.y, $0.id.raw) < ($1.frame.x, $1.frame.y, $1.id.raw) }
+    }
+
+    /// The one display order everywhere (display numbers, next/prev, menu bar): the displays `order` names
+    /// first, in its order, then the rest left to right, then top to bottom for displays stacked above each
+    /// other. An entry of `order` names a display (see `matches`: `main`, `built-in`, `ext 2`, part of the model
+    /// name); it takes the leftmost display it matches that no earlier entry took.
+    public static func ordered(_ displays: [Display], by order: [String] = []) -> [Display] {
+        var rest = spatial(displays)
+        let labels = labels(displays)
+        var named: [Display] = []
+        for entry in order {
+            if let i = rest.firstIndex(where: { $0.matches(entry, label: labels[$0.id]) }) {
+                named.append(rest.remove(at: i))
+            }
+        }
+        return named + rest
+    }
+
+    /// The nearest display on that side: one wholly beyond that edge (displays don't overlap), overlapping this
+    /// one across the direction first (right next to it rather than diagonal), then the closest. nil at the edge.
+    public func neighbour(_ side: Side, in displays: [Display]) -> Display? {
+        let f = frame, c = f.center
+        func gap(_ d: Display) -> Double? {
+            let o = d.frame
+            let g: Double
+            switch side {
+            case .left: g = f.x - o.maxX
+            case .right: g = o.x - f.maxX
+            case .up: g = f.y - o.maxY
+            case .down: g = o.y - f.maxY
+            }
+            return g >= -1 ? max(0, g) : nil
+        }
+        func overlapsAcross(_ d: Display) -> Bool {
+            switch side {
+            case .left, .right: return d.frame.y < f.maxY && f.y < d.frame.maxY
+            case .up, .down: return d.frame.x < f.maxX && f.x < d.frame.maxX
+            }
+        }
+        func across(_ d: Display) -> Double {
+            let o = d.frame.center
+            return side == .left || side == .right ? abs(o.y - c.y) : abs(o.x - c.x)
+        }
+        return displays.compactMap { d in d.id == id ? nil : gap(d).map { (d, $0) } }
+            .min { (overlapsAcross($0.0) ? 0 : 1, $0.1, across($0.0)) < (overlapsAcross($1.0) ? 0 : 1, $1.1, across($1.0)) }?
+            .0
+    }
+}
+
+public enum Side: String, Equatable, Sendable, CaseIterable {
+    case left, right, up, down
 }
 
 /// A standard window as reported by the OS.

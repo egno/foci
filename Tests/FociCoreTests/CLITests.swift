@@ -86,7 +86,7 @@ struct CLIHandlerTests {
         let h = harness()
         let list = CLIHandler(engine: h.engine).workspaces()
         let w = list.first { $0.name == "w" }
-        #expect(w == WorkspaceDTO(name: "w", display: "LG HDR 4K", shown: true, focused: true, layout: "maximized", windows: 2))
+        #expect(w == WorkspaceDTO(name: "w", display: "ext 1", shown: true, focused: true, layout: "maximized", windows: 2))
         #expect(list.first { $0.name == "x" }?.windows == 0)  // iam's kitty
     }
 

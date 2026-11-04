@@ -43,7 +43,7 @@ public final class TOMLConfigSource: ConfigSource {
         var c = Config()
         try checkKeys(
             root,
-            ["start-at-login", "gap", "accordion-padding", "default-layout", "workspaces", "apps", "browser", "projects", "leader", "mode",
+            ["start-at-login", "gap", "accordion-padding", "default-layout", "display-order", "workspaces", "apps", "browser", "projects", "leader", "mode",
              "key-hints", "key-hints-delay", "leader-timeout", "repeat-timeout", "hold-delay", "focus-history", "menu-bar-style"],
             at: "top level")
         if let v = root["start-at-login"] { c.startAtLogin = try bool(v, "start-at-login") }
@@ -85,6 +85,11 @@ public final class TOMLConfigSource: ConfigSource {
         if let gap = root["gap"] { c.gap = try number(gap, "gap") }
         if let p = root["accordion-padding"] { c.accordionPadding = max(try number(p, "accordion-padding"), 0) }
         if let l = root["default-layout"] { c.defaultLayout.kind = try layoutKind(l, "default-layout") }
+
+        if let v = root["display-order"] {
+            guard let a = v.array else { throw ConfigError("display-order: expected an array of display names") }
+            c.displayOrder = try a.map { try string($0, "display-order") }
+        }
 
         if let ws = root["workspaces"] {
             let t = try table(ws, "workspaces")

@@ -27,6 +27,7 @@ struct ConfigTests {
             """
             gap = 8
             default-layout = 'tiles'
+            display-order = ['main', 'LG']
             [workspaces]
             w = { display = 'LG' }
             c = { layout = 'maximized', orientation = 'vertical' }
@@ -43,6 +44,7 @@ struct ConfigTests {
             alt-1 = ['project bil', 'workspace w']
             """)
         #expect(c.gap == 8)
+        #expect(c.displayOrder == ["main", "LG"])
         #expect(c.workspaces == ["w": .name("LG"), "c": .main, "x": .index(2)])
         #expect(c.defaultLayout == Layout(.tiles))
         #expect(c.workspaceLayouts == ["c": Layout(.maximized, orientation: .vertical)])
