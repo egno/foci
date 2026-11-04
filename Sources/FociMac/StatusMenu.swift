@@ -8,6 +8,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     /// Runs a command script, optionally targeting a specific window instead of the focused one.
     var onCommand: ((String, WindowID?) -> Void)?
     var onEditConfig: (() -> Void)?
+    /// Foci waits for the Accessibility permission: the menu says how to grant it.
+    var needsAccessibility = false
+    var onOpenAccessibilitySettings: (() -> Void)?
+    var onResetAccessibility: (() -> Void)?
     weak var engine: Engine?
 
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -84,6 +88,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
+        if needsAccessibility { buildAccessibilityHelp(menu) }
         if let engine { build(menu, engine) }
         for p in problems.prefix(10) { menu.addItem(disabled("⚠ " + p)) }
         if !problems.isEmpty { menu.addItem(.separator()) }
@@ -92,6 +97,19 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Foci", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
+
+    private func buildAccessibilityHelp(_ menu: NSMenu) {
+        menu.addItem(header("Accessibility Permission Needed"))
+        menu.addItem(disabled("Foci moves windows through Accessibility. Turn on Foci in"))
+        menu.addItem(disabled("System Settings → Privacy & Security → Accessibility; Foci starts by itself."))
+        menu.addItem(action("Open Accessibility Settings…", #selector(openAccessibilitySettings)))
+        menu.addItem(disabled("Foci is on there but still asks (after an update)? Reset it:"))
+        menu.addItem(action("Reset Permission and Ask Again", #selector(resetAccessibility)))
+        menu.addItem(.separator())
+    }
+
+    @objc private func openAccessibilitySettings() { onOpenAccessibilitySettings?() }
+    @objc private func resetAccessibility() { onResetAccessibility?() }
 
     private func build(_ menu: NSMenu, _ engine: Engine) {
         let projects = engine.config.projects.map(\.name)

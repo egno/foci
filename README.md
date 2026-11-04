@@ -97,9 +97,12 @@ open /Applications/Foci.app
 ln -sf /Applications/Foci.app/Contents/MacOS/foci ~/.local/bin/foci   # optional: the CLI
 ```
 
-Foci asks for the Accessibility permission on first start. Release builds are signed ad hoc, so after updating to
-a new version macOS may ask again: remove Foci from System Settings → Privacy & Security → Accessibility and add
-it back.
+Foci asks for the Accessibility permission on first start: turn Foci on in System Settings → Privacy & Security →
+Accessibility, and it starts by itself. Until then the menu bar shows `Foci ⚠ Accessibility`; its menu opens the
+settings. Release builds are signed ad hoc, so the permission belongs to one build: after an update the switch is
+on but doesn't apply. Click **Reset Permission and Ask Again** in Foci's menu (or run
+`tccutil reset Accessibility dev.foci.Foci`) and turn it on again. Start Foci from Finder, Spotlight or
+`open -a Foci`; `foci` without arguments in a terminal does the same.
 
 ## Build & run
 

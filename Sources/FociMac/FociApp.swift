@@ -33,13 +33,18 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         // First, so the config is there to edit while Foci waits for the Accessibility permission.
         installConfigIfMissing()
         menu.onEditConfig = { [configSource] in NSWorkspace.shared.open(configSource.url) }
+        menu.onOpenAccessibilitySettings = Self.openAccessibilitySettings
+        menu.onResetAccessibility = Self.resetAccessibility
         guard AXWindowSystem.isTrusted(prompt: true) else {
+            log.error("no Accessibility permission for \(Bundle.main.bundlePath, privacy: .public)")
             menu.setTitle("Foci ⚠ Accessibility")
+            menu.needsAccessibility = true
             // Start as soon as the user grants the permission in System Settings.
             timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
                 MainActor.assumeIsolated {
                     guard AXWindowSystem.isTrusted(prompt: false) else { return }
                     self.timer?.invalidate()
+                    self.menu.needsAccessibility = false
                     self.start()
                 }
             }
@@ -68,6 +73,22 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         // Never leave windows parked off-screen.
         engine?.restoreAll()
         cliServer.stop()
+    }
+
+    static func openAccessibilitySettings() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+    }
+
+    /// Release builds are signed ad hoc: the permission belongs to one build, and after an update the switch in
+    /// System Settings is on but doesn't apply to the new one. Forget it and ask again.
+    static func resetAccessibility() {
+        let reset = Process()
+        reset.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        reset.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "dev.foci.Foci"]
+        try? reset.run()
+        reset.waitUntilExit()
+        _ = AXWindowSystem.isTrusted(prompt: true)
+        openAccessibilitySettings()
     }
 
     /// No config (first start, or deleted): write the example one.
