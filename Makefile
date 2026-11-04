@@ -1,7 +1,7 @@
 APP := build/Foci.app
 INSTALL_DIR := $(HOME)/Applications
 
-.PHONY: build test app install run log clean e2e
+.PHONY: build test app install release run log clean e2e
 
 build:
 	swift build
@@ -21,6 +21,10 @@ install: app
 	mkdir -p $(HOME)/.local/bin
 	ln -sf $(INSTALL_DIR)/Foci.app/Contents/MacOS/foci $(HOME)/.local/bin/foci
 	open $(INSTALL_DIR)/Foci.app
+
+# build/Foci-<version>.zip for a GitHub release: universal, signed ad hoc, see scripts/release.sh.
+release:
+	scripts/release.sh
 
 run: build
 	swift run foci

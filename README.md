@@ -75,6 +75,22 @@ so its windows park in the free outer corner of a neighbour.
 This lets windows of one process (one Chrome) belong to different projects. On quit Foci puts every window
 back on screen.
 
+## Install
+
+Download `Foci-<version>.zip` from [Releases](https://github.com/egno/foci/releases) (macOS 14+, Apple silicon and
+Intel), unzip it and move `Foci.app` to `~/Applications` or `/Applications`. The app isn't notarized, so macOS
+blocks it at first; clear the quarantine flag once and open it:
+
+```sh
+xattr -dr com.apple.quarantine ~/Applications/Foci.app
+open ~/Applications/Foci.app
+ln -sf ~/Applications/Foci.app/Contents/MacOS/foci ~/.local/bin/foci   # optional: the CLI
+```
+
+Foci asks for the Accessibility permission on first start. Release builds are signed ad hoc, so after updating to
+a new version macOS may ask again: remove Foci from System Settings → Privacy & Security → Accessibility and add
+it back.
+
 ## Build & run
 
 Requires macOS 14+, Swift 6.
@@ -84,6 +100,7 @@ scripts/make-signing-cert.sh   # once: a stable signature keeps the Accessibilit
 make test
 make install                   # builds build/Foci.app, installs to ~/Applications, starts it
 make log                       # follow the log
+make release                   # build/Foci-<version>.zip for a GitHub release (universal, signed ad hoc)
 ```
 
 With `start-at-login = true` (the default config) Foci registers itself as a login item; macOS may ask you to allow
