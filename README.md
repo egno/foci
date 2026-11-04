@@ -122,8 +122,9 @@ it in System Settings → General → Login Items.
 To route links, pick Foci in System Settings → Desktop & Dock → Default web browser.
 
 On start, when there is no config yet, Foci writes the example config to `~/.config/foci/config.toml` (even
-before it gets the Accessibility permission, which it asks for on first start): workspaces and key bindings, with apps, projects and the launch menu as commented-out
-examples (Chrome, kitty, VS Code, Firefox; projects `work` and `pet`) to uncomment and adapt. The config is reloaded on save; problems appear in the menu bar menu (⚠).
+before it gets the Accessibility permission, which it asks for on first start): workspaces, key bindings and the projects `Pet` and `Work`
+(no apps: link windows by hand), with apps and the launch menu as commented-out examples (Chrome, kitty, VS Code,
+Firefox) to uncomment and adapt. The config is reloaded on save; problems appear in the menu bar menu (⚠).
 State (links, active project and workspaces) is kept in `~/Library/Application Support/Foci/state.json`.
 For tests, `FOCI_HOME=<dir>` moves the config (`config.toml`), the state and the CLI socket into `<dir>`.
 

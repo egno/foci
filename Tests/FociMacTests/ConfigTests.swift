@@ -10,9 +10,11 @@ struct ConfigTests {
         let c = try TOMLConfigSource.parse(DefaultConfig.text)
         #expect(c.validate() == [])
         #expect(c.startAtLogin)
-        // No real apps or projects, only commented examples.
+        // Projects without apps (windows linked by hand); the apps are commented examples.
+        #expect(c.projects.map(\.name) == ["Pet", "Work"])
+        #expect(c.projects.allSatisfy { $0.apps.isEmpty })
+        #expect(c.projects.map(\.key) == ["p", "w"])
         #expect(c.apps.isEmpty)
-        #expect(c.projects.isEmpty)
         #expect(c.browser == nil)
         #expect(c.modes["launch"] == nil)
         #expect(c.workspaces["x"] == .secondary)
@@ -27,11 +29,8 @@ struct ConfigTests {
         #expect(DefaultConfig.text.contains(DefaultConfig.commented(DefaultConfig.examples)))
         let c = try TOMLConfigSource.parse("browser = 'chrome'\n" + DefaultConfig.examples)
         #expect(c.validate() == [])
-        #expect(c.projects.map(\.name) == ["work", "pet"])
         #expect(c.apps["chrome"]?.newWindows == .activeProject)
         #expect(c.apps["chrome"]?.openURL == #"open -a "Google Chrome" {url}"#)
-        #expect(c.project("pet")?.ref("vscode")?.autostart == false)
-        #expect(c.project("work")?.ref("vscode")?.open == ["~/src/work"])
         #expect(c.modes["launch"]?.count == 4)
 
         // Uncommented in place, the whole default config is a working setup too.
@@ -39,9 +38,13 @@ struct ConfigTests {
             .replacingOccurrences(of: "# browser = 'chrome'", with: "browser = 'chrome'")
             .replacingOccurrences(of: "# slash = 'mode launch'", with: "slash = 'mode launch'")
             .replacingOccurrences(of: DefaultConfig.commented(DefaultConfig.examples), with: DefaultConfig.examples)
+            .replacingOccurrences(of: "# apps = [", with: "apps = [")
         let full = try TOMLConfigSource.parse(uncommented)
         #expect(full.validate() == [])
         #expect(full.apps.count == 6)
+        #expect(full.projects.map(\.name) == ["Pet", "Work"])
+        #expect(full.project("Pet")?.ref("vscode")?.autostart == false)
+        #expect(full.project("Work")?.ref("vscode")?.open == ["~/src/work"])
         #expect(full.modes["control"]?[KeyCombo(parsing: "slash")!] == "mode launch")
     }
 

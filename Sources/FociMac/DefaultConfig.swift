@@ -102,9 +102,24 @@ enum DefaultConfig {
         # manage         false = ignore the app completely
 
         # Examples, commented out: uncomment and adapt them (remove '# ' before the TOML lines). With
-        # 'browser = ...' at the top too, the examples are a working setup.
+        # 'browser = ...' at the top and the projects' 'apps' lines below too, the examples are a working setup.
 
         """# + "\n" + commented(examples) + "\n\n" + #"""
+        # ---------------------------------------------------------------- Projects
+        # Order = 'project next|prev' order.
+        # apps: the project's apps (see the examples above); their windows link to the project by the app's rules.
+        # Without apps, link windows by hand: leader, space, '.' and the project's key.
+        # autostart (default true): when you switch to the app's workspace in this project and the project has
+        # no window of the app, launch it.
+        # key (default: the first letter of the name): what '{project}' in a binding key stands for.
+        [[projects]]
+        name = 'Pet'
+        # apps = ['firefox', { app = 'vscode', autostart = false, open = ['~/src/pet'] }, { app = 'kitty', autostart = false }]
+
+        [[projects]]
+        name = 'Work'
+        # apps = ['chrome', { app = 'vscode', open = ['~/src/work'] }, 'kitty']
+
         # ---------------------------------------------------------------- Bindings
         # Commands (separate with ';'):
         #   project <name>|--none|next|prev    project-back-and-forth
@@ -250,7 +265,7 @@ enum DefaultConfig {
         e = { run = 'exec open -t ~/.config/foci/config.toml', label = 'edit config' }
         """#
 
-    /// Example apps, projects and the launch mode: in `text` as comments, valid TOML on their own (tested).
+    /// Example apps and the launch mode: in `text` as comments, valid TOML on their own (tested).
     static let examples = #"""
         # One shared Chrome; each window belongs to a project. Name a window with Chrome's "Name Window..."
         # to keep the link across Chrome restarts (title becomes '<project> - Google Chrome').
@@ -296,19 +311,6 @@ enum DefaultConfig {
         bundle-id = 'com.apple.systempreferences'
         workspace = 'a'
         floating = true
-
-        # ---------------------------------------------------------------- Projects
-        # Order = 'project next|prev' order.
-        # autostart (default true): when you switch to the app's workspace in this project and the project has
-        # no window of the app, launch it.
-        # key (default: the first letter of the name): what '{project}' in a binding key stands for.
-        [[projects]]
-        name = 'work'
-        apps = ['chrome', { app = 'vscode', open = ['~/src/work'] }, 'kitty']
-
-        [[projects]]
-        name = 'pet'
-        apps = ['firefox', { app = 'vscode', autostart = false, open = ['~/src/pet'] }, { app = 'kitty', autostart = false }]
 
         # Launch, or focus, the active project's window of an app: the key is the app's workspace. Uncomment the
         # 'slash' binding in [mode.control.binding] to open it.
