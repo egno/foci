@@ -432,24 +432,15 @@ public final class Engine {
             autostart(in: Set(state.activeWorkspace.values))
 
         case .workspace(let target):
-            let ws: String
-            switch target {
-            case .named(let n): ws = n
-            case .cycle(let dir):
-                let list = workspaces(on: display(of: focusedWorkspace))
-                let i = list.firstIndex(of: focusedWorkspace) ?? 0
-                ws = list[(i + (dir == .next ? 1 : -1) + list.count) % list.count]
-            case .backAndForth:
-                guard let prev = state.previousWorkspace else { return nil }
-                ws = prev
-            }
+            guard let ws = workspace(target) else { return nil }
             showWorkspace(ws)
             apply()
             focusBest(in: ws)
             autostart(in: [ws])
 
-        case .moveToWorkspace(let ws, let follow):
+        case .moveToWorkspace(let target, let follow):
             guard let id = focusedManagedWindow() else { return "no focused window" }
+            guard let ws = workspace(target) else { return nil }
             ensureKnown(ws)
             state.windows[id]?.workspace = ws
             if follow { showWorkspace(ws) }
@@ -757,6 +748,20 @@ public final class Engine {
             state.focusedWorkspace = ws
         } else if let ws = state.focusedWorkspace, !state.activeWorkspace.values.contains(ws) {
             state.focusedWorkspace = state.activeWorkspace[display(of: ws).id]
+        }
+    }
+
+    /// The workspace a target names: `next|prev` cycle the focused display's workspaces, `back` is the previous
+    /// workspace (nil before any switch).
+    private func workspace(_ target: Command.WorkspaceTarget) -> String? {
+        switch target {
+        case .named(let n): return n
+        case .cycle(let dir):
+            let list = workspaces(on: display(of: focusedWorkspace))
+            guard !list.isEmpty else { return nil }
+            let i = list.firstIndex(of: focusedWorkspace) ?? 0
+            return list[(i + (dir == .next ? 1 : -1) + list.count) % list.count]
+        case .backAndForth: return state.previousWorkspace
         }
     }
 

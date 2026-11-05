@@ -34,8 +34,9 @@ public enum CLIRequest: Equatable, Sendable {
                foci subscribe                one JSON status line per change
 
         commands: project <name>|--none|next|prev, project-back-and-forth,
-                  workspace <name>|next|prev, workspace-back-and-forth,
-                  move-to-workspace [--follow] <name>, move-to-display [--follow] <display>,
+                  workspace <ws>, workspace-back-and-forth (= workspace back),
+                  move-to-workspace [--follow] <ws> (<ws>: <name>|next|prev|back, back = the previous one),
+                  move-to-display [--follow] <display>,
                   move-workspace-to-display <display>, focus-display <display>
                   (<display>: next|prev, left|right|up|down, 1-9, main, built-in, ext 1..N, part of the model name),
                   focus next|prev, focus-app next|prev, focus-back, move next|prev,

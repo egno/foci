@@ -25,11 +25,23 @@ public enum DisplayTarget: Equatable, Sendable {
 public enum Command: Equatable, Sendable {
     public enum LayoutChange: Equatable, Sendable { case set(LayoutKind), toggle, toggleOrientation }
     public enum ProjectTarget: Equatable, Sendable { case named(String), none, cycle(Direction), backAndForth }
-    public enum WorkspaceTarget: Equatable, Sendable { case named(String), cycle(Direction), backAndForth }
+    public enum WorkspaceTarget: Equatable, Sendable {
+        case named(String), cycle(Direction), backAndForth
+
+        /// `next|prev` (the workspaces of the focused display), `back` (the previous workspace), or a name.
+        public init(parsing s: String) {
+            switch s {
+            case "next": self = .cycle(.next)
+            case "prev": self = .cycle(.prev)
+            case "back": self = .backAndForth
+            default: self = .named(s)
+            }
+        }
+    }
 
     case project(ProjectTarget)
     case workspace(WorkspaceTarget)
-    case moveToWorkspace(String, follow: Bool)
+    case moveToWorkspace(WorkspaceTarget, follow: Bool)
     /// Move the focused window to the workspace shown on another display.
     case moveToDisplay(DisplayTarget, follow: Bool)
     case moveWorkspaceToDisplay(DisplayTarget)
@@ -113,18 +125,13 @@ public enum Command: Equatable, Sendable {
             case let p: return .project(.named(p))
             }
         case "project-back-and-forth": try none(); return .project(.backAndForth)
-        case "workspace":
-            switch try one() {
-            case "next": return .workspace(.cycle(.next))
-            case "prev": return .workspace(.cycle(.prev))
-            case let w: return .workspace(.named(w))
-            }
+        case "workspace": return .workspace(WorkspaceTarget(parsing: try one()))
         case "workspace-back-and-forth": try none(); return .workspace(.backAndForth)
         case "move-to-workspace":
             let follow = args.contains("--follow")
             let rest = args.filter { $0 != "--follow" }
-            guard rest.count == 1 else { throw ParseError(description: "usage: move-to-workspace [--follow] <name>") }
-            return .moveToWorkspace(rest[0], follow: follow)
+            guard rest.count == 1 else { throw ParseError(description: "usage: move-to-workspace [--follow] <name>|next|prev|back") }
+            return .moveToWorkspace(WorkspaceTarget(parsing: rest[0]), follow: follow)
         case "move-to-display":
             let follow = args.contains("--follow")
             let rest = args.filter { $0 != "--follow" }

@@ -241,6 +241,25 @@ struct EngineTests {
         #expect(h.ws.frame(1) == Display.left.visibleFrame)
     }
 
+    @Test func moveWindowToPreviousWorkspace() {
+        let h = Harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
+        h.engine.run("move-to-workspace back")  // no previous workspace yet: nothing happens
+        h.engine.run("workspace c")
+        h.engine.run("workspace w")
+        h.ws.focused = WindowID(1)
+        h.engine.run("move-to-workspace back")
+        #expect(h.record(1)?.workspace == "c")
+        #expect(h.engine.focusedWorkspace == "w")
+        h.engine.run("workspace c")
+        h.ws.focused = WindowID(1)
+        h.engine.run("move-to-workspace --follow back")
+        #expect(h.record(1)?.workspace == "w")
+        #expect(h.engine.focusedWorkspace == "w")
+        h.engine.run("workspace back")
+        #expect(h.engine.focusedWorkspace == "c")
+    }
+
     @Test func moveWindowToOtherDisplay() {
         let h = Harness()
         h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")

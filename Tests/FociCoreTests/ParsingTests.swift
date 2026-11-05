@@ -22,7 +22,10 @@ struct ParsingTests {
         #expect(try Command.parse("unlink") == .unlink(follow: false))
         #expect(try Command.parse("unlink --follow") == .unlink(follow: true))
         #expect(throws: Command.ParseError.self) { try Command.parse("unlink work") }
-        #expect(try Command.parse("move-to-workspace --follow x") == .moveToWorkspace("x", follow: true))
+        #expect(try Command.parse("move-to-workspace --follow x") == .moveToWorkspace(.named("x"), follow: true))
+        #expect(try Command.parse("move-to-workspace back") == .moveToWorkspace(.backAndForth, follow: false))
+        #expect(try Command.parse("move-to-workspace --follow next") == .moveToWorkspace(.cycle(.next), follow: true))
+        #expect(try Command.parse("workspace back") == .workspace(.backAndForth))
     }
 
     @Test func badCommandsAreRejected() {

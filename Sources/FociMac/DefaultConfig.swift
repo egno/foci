@@ -123,8 +123,9 @@ enum DefaultConfig {
         # ---------------------------------------------------------------- Bindings
         # Commands (separate with ';'):
         #   project <name>|--none|next|prev    project-back-and-forth
-        #   workspace <name>|next|prev         workspace-back-and-forth
-        #   move-to-workspace [--follow] <name>
+        #   workspace <ws>    workspace-back-and-forth (= workspace back)
+        #   move-to-workspace [--follow] <ws>
+        #     <ws>: <name>, next|prev (the workspaces of the focused display), back (the previous workspace)
         #   move-to-display [--follow] <display>   the focused window to the workspace shown on that display
         #   move-workspace-to-display <display>    focus-display <display>
         #     <display>: next|prev (left to right, wrapping), left|right|up|down (the nearest one on that side),
