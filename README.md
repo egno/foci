@@ -13,7 +13,7 @@ A small macOS window manager for working on one project at a time, keyboard firs
   disconnected one. Displays are called `built-in` (the laptop's screen) and `ext 1`…`ext N` (the others, from the
   left), in the menu, the CLI and the config; the model name (`dell`) works too. They are numbered from the left
   (then top to bottom), or in the order of `display-order = ['built-in', 'ext 2', 'ext 1']` (unlisted ones follow),
-  the same order everywhere: the menu bar, `1`–`3` after the leader, `focus-display 2`, `next|prev`, `x = '2'` in
+  the same order everywhere: the menu bar, `focus-display 2`, `next|prev`, `x = '2'` in
   `[workspaces]`. Display commands take `next|prev` (wrapping), `left|right|up|down` (the nearest display on that
   side), a number, `main`, a name (`ext 2`) or part of the model name.
 - **Maximized by default, tiles on demand.** Each workspace is `maximized` (windows fill the display as an
@@ -29,22 +29,45 @@ A small macOS window manager for working on one project at a time, keyboard firs
   windows go to the active project. Outside any project, `browser` opens them in an unlinked window.
 - **Leader key and submenus**, like AstroNvim. The leader (`leader = ['right-cmd', 'f20', 'ctrl-esc']`: right ⌘
   tapped alone, or a key; `hold-space`: space held for `hold-delay` ms (250), typed as usual when tapped or
-  when the next key comes first) opens a menu of single plain keys:
+  when the next key comes first) opens a menu of single plain keys. The example config's bindings are a
+  grammar, leader `;` VERB KIND TARGET, with no arrows or digits:
 
-  | Key | Does |
-  |---|---|
-  | `a`–`z` | workspace |
-  | leader | last workspace |
-  | arrows | focus |
-  | `enter` | next window of the focused app (active project and unlinked, any workspace; repeats) |
-  | `tab` | next display |
-  | `1`–`3` | display by number, from the left |
-  | `space` | +project: the same keys for projects (a project's key, `space` last project, `.` move window, `,` go with window, `n` no project, arrows cycle) |
-  | `.` | +move (arrows, `tab` window to next display, `1`–`3` to that display, `space` workspace to next display) |
-  | `,` | +go with window (also `tab`, `1`–`3`) |
-  | `/` | +launch: launch or focus the active project's window of an app, keyed by its workspace (in the example config's commented-out examples) |
-  | `'` | +layout (`enter` toggle) |
-  | `;` | +config (`r` reload, `e` edit) |
+  | | Key | |
+  |---|---|---|
+  | VERB | `f` | focus |
+  | | `m` | move the focused window there, stay |
+  | | `t` | take the focused window there: move it and follow |
+  | | `s` | send the focused workspace |
+  | KIND | `w` | window order |
+  | | `s` | workspace |
+  | | `d` | display |
+  | | `p` | project |
+  | | `a` | window of the same app |
+  | TARGET | a letter | workspace, project key |
+  | | `,` `.` | previous, next (they repeat, except moving a window without following it) |
+  | | `enter` | the last one |
+  | | `n` | no project |
+
+  So `; f s c` focuses workspace `c`, `; m s c` moves the window there, `; t p w` links it to project Work and
+  switches to it, `; m p n` unlinks it, `; m w .` swaps it with the next window, `; s d .` sends the workspace
+  to the next display. `; l` layout, `; o` launch, `; c` config.
+
+  The most used sequences have shortcuts, copies of grammar sequences. The leader menu is the workspace menu
+  (`; f s`) and the leader twice the project menu (`; f p`); in both, `-` switches to moving the window and `=`
+  to taking it along:
+
+  | After the leader | Does | Grammar |
+  |---|---|---|
+  | `a`–`z`, `enter` | workspace, last workspace | `; f s` |
+  | `-` + target | move the window to a workspace | `; m s` |
+  | `=` + target | take the window to a workspace | `; t s` |
+  | `,` `.` | previous, next window | `; f w` |
+  | `space` | last window (`focus-back`) | `; f w enter` |
+  | `~` `\|` | previous, next display | `; f d` |
+  | `` ` `` `tab` | previous, next window of the focused app | `; f a` |
+  | leader | +project: a project's key, `enter` last project, `,` `.`, `n` no project; `-` link the window, `=` link and follow | `; f p` |
+  | `'` | +layout (`enter` toggle, `,` `.` resize) | `; l` |
+  | `/` | +launch: the active project's window of an app, keyed by its workspace (in the commented-out examples) | `; o` |
 
   In binding keys `leader` stands for all the leader keys, `{workspace}` for every letter
   (`'{workspace}' = 'workspace {workspace}'`) and `{project}` for each project's key: the first letter of its
@@ -53,10 +76,10 @@ A small macOS window manager for working on one project at a time, keyboard firs
   `backspace` goes up one level. A submenu also closes after `leader-timeout` ms (5000), on a click, and on a key
   it doesn't bind (the key still reaches the app).
 - **Repeat keys**, like Emacs's repeat-mode: after a key with `repeat = true` acts (focus, move, resize), only
-  the repeat keys of its mode stay bound for `repeat-timeout` ms (1000), so `leader → → →`. Any other key
+  the repeat keys of its mode stay bound for `repeat-timeout` ms (1000), so `leader . . .`. Any other key
   goes to the app.
 - **Key hints**, like which-key: if no key is pressed for `key-hints-delay` ms (300), a popup at the bottom
-  of the focused display lists the next keys, titled with the path (`Foci › Move`). Submenus show as
+  of the focused display lists the next keys, titled with the path (`Foci › Move window to workspace`). Submenus show as
   `+label`. Keys that do the same with their own key show as one row: `a-z → workspace`. Name things with
   `[mode.<name>] label = '...'` and `key = { run = '...', label = '...' }`.
 - **Menu bar**, like AeroSpace's experimental UI: the project, the workspace shown on each display (left to right) as a
