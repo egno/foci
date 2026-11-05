@@ -41,7 +41,7 @@ enum DefaultConfig {
         # key it doesn't bind (that key still reaches the app).
         leader-timeout = 5000
         # Repeat keys ('repeat = true', like Emacs's repeat-mode): after one acts, only the repeat keys of its
-        # mode stay bound for 'repeat-timeout' milliseconds, so 'leader → → →'. Any other key goes to the app.
+        # mode stay bound for 'repeat-timeout' milliseconds, so 'leader . . .'. Any other key goes to the app.
         repeat-timeout = 1000
         # Windows 'focus-back' can go back to, most recently focused first.
         focus-history = 10
@@ -108,7 +108,7 @@ enum DefaultConfig {
         # ---------------------------------------------------------------- Projects
         # Order = 'project next|prev' order.
         # apps: the project's apps (see the examples above); their windows link to the project by the app's rules.
-        # Without apps, link windows by hand: leader, space, '.' and the project's key.
+        # Without apps, link windows by hand: leader twice, '-' and the project's key.
         # autostart (default true): when you switch to the app's workspace in this project and the project has
         # no window of the app, launch it.
         # key (default: the first letter of the name): what '{project}' in a binding key stands for.
@@ -152,6 +152,14 @@ enum DefaultConfig {
         # 'main', unless the key enters another mode or the mode is 'sticky = true'. In every submenu 'esc' closes
         # and 'backspace' goes up one level, unless bound. [mode.<name>] label = '...' names the submenu in key hints.
 
+        # The grammar: leader ';' VERB KIND TARGET, e.g. '; m s c' = move the window to workspace c.
+        #   VERB    f focus · m move the window (stay) · t take the window (move and follow) · s send the workspace
+        #   KIND    w window order · s workspace · d display · p project · a window of the same app
+        #   TARGET  a letter (workspace / project key) · ',' '.' prev / next · enter the last one · n no project
+        # Shortcuts are copies of grammar sequences: the leader is the workspace menu ('; f s'), leader twice the
+        # project menu ('; f p'). In both, '-' switches to "move the window" and '=' to "take the window".
+        # '~' and '|' are shift-backtick and shift-backslash.
+
         # Global hotkeys need a modifier, an F-key or a modifier tapped alone; after the leader, single plain keys.
         [mode.main.binding]
         leader = 'mode control'
@@ -160,76 +168,184 @@ enum DefaultConfig {
         label = 'Foci'
 
         [mode.control.binding]
-        # Every letter is a workspace, right after the leader.
         '{workspace}' = 'workspace {workspace}'
-
-        space = 'mode project'
-
-        # Leader twice: the last workspace.
-        leader = 'workspace-back-and-forth'
-        enter = { run = 'focus-app next', label = 'next window of the app', repeat = true }
-        tab = 'focus-display next'
-        # Digits are displays, numbered from the left as in the menu bar.
-        1 = { run = 'focus-display 1', label = 'display 1' }
-        2 = { run = 'focus-display 2', label = 'display 2' }
-        3 = { run = 'focus-display 3', label = 'display 3' }
-
-        # Window order is one row (tiles side by side) or one column (stacked/maximized). Letters are workspaces,
-        # so focus is on the arrows.
-        right = { run = 'focus next', repeat = true }
-        down = { run = 'focus next', repeat = true }
-        left = { run = 'focus prev', repeat = true }
-        up = { run = 'focus prev', repeat = true }
-        minus = { run = 'resize -50', repeat = true }
-        equal = { run = 'resize +50', repeat = true }
-
-        period = 'mode move'
-        comma = 'mode go'
-        # slash = 'mode launch'   # see the [mode.launch] example above
+        enter = { run = 'workspace back', label = 'last workspace' }
+        space = { run = 'focus-back', label = 'last window', repeat = true }
+        comma = { run = 'focus prev', label = 'prev window', repeat = true }
+        period = { run = 'focus next', label = 'next window', repeat = true }
+        shift-backtick = { run = 'focus-display prev', label = 'prev display', repeat = true }
+        shift-backslash = { run = 'focus-display next', label = 'next display', repeat = true }
+        backtick = { run = 'focus-app prev', label = 'prev window of the app', repeat = true }
+        tab = { run = 'focus-app next', label = 'next window of the app', repeat = true }
+        minus = 'mode ws-move'
+        equal = 'mode ws-take'
+        leader = 'mode project'
+        semicolon = 'mode cmd'
         quote = 'mode layout'
-        semicolon = 'mode config'
+        # slash = 'mode launch'   # see the [mode.launch] example above
 
-        # Like the workspaces after the leader: a project's key switches to it, space twice the last project,
-        # '.' moves the window to a project, ',' goes there with it; arrows cycle.
+        # ---------------------------------------------------------------- Grammar: verbs
+        [mode.cmd]
+        label = 'Command'
+
+        [mode.cmd.binding]
+        f = 'mode cmd-focus'
+        m = 'mode cmd-move'
+        t = 'mode cmd-take'
+        s = 'mode cmd-send'
+        l = 'mode layout'
+        # o = 'mode launch'
+        c = 'mode config'
+
+        [mode.cmd-focus]
+        label = 'Focus'
+
+        [mode.cmd-focus.binding]
+        w = 'mode window'
+        s = 'mode workspace'
+        d = 'mode display'
+        p = 'mode project'
+        a = 'mode app'
+
+        [mode.cmd-move]
+        label = 'Move window'
+
+        [mode.cmd-move.binding]
+        w = 'mode window-move'
+        s = 'mode ws-move'
+        d = 'mode display-move'
+        p = 'mode project-move'
+
+        [mode.cmd-take]
+        label = 'Take window'
+
+        [mode.cmd-take.binding]
+        s = 'mode ws-take'
+        d = 'mode display-take'
+        p = 'mode project-take'
+
+        [mode.cmd-send]
+        label = 'Send workspace'
+
+        [mode.cmd-send.binding]
+        d = 'mode ws-display'
+
+        # ---------------------------------------------------------------- Grammar: targets
+        # Focus: letters / ',' '.' / enter. '-' and '=' switch to moving / taking the window to the same kind.
+        [mode.workspace]
+        label = 'Workspace'
+
+        [mode.workspace.binding]
+        '{workspace}' = 'workspace {workspace}'
+        comma = { run = 'workspace prev', repeat = true }
+        period = { run = 'workspace next', repeat = true }
+        enter = { run = 'workspace back', label = 'last workspace' }
+        minus = 'mode ws-move'
+        equal = 'mode ws-take'
+
         [mode.project]
         label = 'Project'
 
         [mode.project.binding]
         '{project}' = 'project {project}'
-        n = { run = 'project --none', label = 'no project' }
+        comma = { run = 'project prev', repeat = true }
+        period = { run = 'project next', repeat = true }
+        enter = { run = 'project-back-and-forth', label = 'last project' }
         space = { run = 'project-back-and-forth', label = 'last project' }
-        period = 'mode link'
-        comma = 'mode link-go'
-        right = { run = 'project next', repeat = true }
-        down = { run = 'project next', repeat = true }
-        left = { run = 'project prev', repeat = true }
-        up = { run = 'project prev', repeat = true }
+        n = { run = 'project --none', label = 'no project' }
+        minus = 'mode project-move'
+        equal = 'mode project-take'
 
-        [mode.move]
-        label = 'Move'
+        [mode.window]
+        label = 'Window'
 
-        [mode.move.binding]
+        [mode.window.binding]
+        comma = { run = 'focus prev', repeat = true }
+        period = { run = 'focus next', repeat = true }
+        enter = { run = 'focus-back', label = 'last window', repeat = true }
+        minus = 'mode window-move'
+
+        [mode.display]
+        label = 'Display'
+
+        [mode.display.binding]
+        comma = { run = 'focus-display prev', repeat = true }
+        period = { run = 'focus-display next', repeat = true }
+        minus = 'mode display-move'
+        equal = 'mode display-take'
+
+        [mode.app]
+        label = 'App window'
+
+        [mode.app.binding]
+        comma = { run = 'focus-app prev', repeat = true }
+        period = { run = 'focus-app next', repeat = true }
+
+        # Move the window, stay. No repeat: the moved window is no longer focused.
+        [mode.ws-move]
+        label = 'Move window to workspace'
+
+        [mode.ws-move.binding]
         '{workspace}' = 'move-to-workspace {workspace}'
-        right = { run = 'move next', repeat = true }
-        down = { run = 'move next', repeat = true }
-        left = { run = 'move prev', repeat = true }
-        up = { run = 'move prev', repeat = true }
-        tab = { run = 'move-to-display next', label = 'to next display' }
-        space = { run = 'move-workspace-to-display next', label = 'workspace to next display' }
-        1 = { run = 'move-to-display 1', label = 'to display 1' }
-        2 = { run = 'move-to-display 2', label = 'to display 2' }
-        3 = { run = 'move-to-display 3', label = 'to display 3' }
+        comma = 'move-to-workspace prev'
+        period = 'move-to-workspace next'
+        enter = { run = 'move-to-workspace back', label = 'last workspace' }
 
-        [mode.go]
-        label = 'Go with window'
+        [mode.window-move]
+        label = 'Move window in order'
 
-        [mode.go.binding]
+        [mode.window-move.binding]
+        comma = { run = 'move prev', repeat = true }
+        period = { run = 'move next', repeat = true }
+
+        [mode.display-move]
+        label = 'Move window to display'
+
+        [mode.display-move.binding]
+        comma = 'move-to-display prev'
+        period = 'move-to-display next'
+
+        [mode.project-move]
+        label = 'Link window'
+
+        [mode.project-move.binding]
+        '{project}' = 'link {project}'
+        enter = { run = 'link --active', label = 'active project' }
+        n = { run = 'unlink', label = 'unlink' }
+
+        # Take the window: move it and follow.
+        [mode.ws-take]
+        label = 'Take window to workspace'
+
+        [mode.ws-take.binding]
         '{workspace}' = 'move-to-workspace --follow {workspace}'
-        tab = { run = 'move-to-display --follow next', label = 'to next display' }
-        1 = { run = 'move-to-display --follow 1', label = 'to display 1' }
-        2 = { run = 'move-to-display --follow 2', label = 'to display 2' }
-        3 = { run = 'move-to-display --follow 3', label = 'to display 3' }
+        comma = { run = 'move-to-workspace --follow prev', repeat = true }
+        period = { run = 'move-to-workspace --follow next', repeat = true }
+        enter = { run = 'move-to-workspace --follow back', label = 'last workspace' }
 
+        [mode.display-take]
+        label = 'Take window to display'
+
+        [mode.display-take.binding]
+        comma = { run = 'move-to-display --follow prev', repeat = true }
+        period = { run = 'move-to-display --follow next', repeat = true }
+
+        [mode.project-take]
+        label = 'Link window and follow'
+
+        [mode.project-take.binding]
+        '{project}' = 'link --follow {project}'
+        n = { run = 'unlink --follow', label = 'unlink, no project' }
+
+        # Send the workspace.
+        [mode.ws-display]
+        label = 'Send workspace to display'
+
+        [mode.ws-display.binding]
+        comma = { run = 'move-workspace-to-display prev', repeat = true }
+        period = { run = 'move-workspace-to-display next', repeat = true }
+
+        # ---------------------------------------------------------------- Other menus
         [mode.layout]
         label = 'Layout'
 
@@ -240,23 +356,8 @@ enum DefaultConfig {
         o = 'layout toggle-orientation'
         b = 'balance'
         f = 'float'
-
-        # Link the focused window by hand.
-        [mode.link]
-        label = 'Move'
-
-        [mode.link.binding]
-        '{project}' = 'link {project}'
-        l = { run = 'link --active', label = 'link to the active project' }
-        n = 'unlink'
-
-        # Link the focused window to a project and switch to it with the window.
-        [mode.link-go]
-        label = 'Go with window'
-
-        [mode.link-go.binding]
-        '{project}' = 'link --follow {project}'
-        n = { run = 'unlink --follow', label = 'unlink, no project' }
+        comma = { run = 'resize -50', label = 'narrower', repeat = true }
+        period = { run = 'resize +50', label = 'wider', repeat = true }
 
         [mode.config]
         label = 'Config'
@@ -314,7 +415,7 @@ enum DefaultConfig {
         floating = true
 
         # Launch, or focus, the active project's window of an app: the key is the app's workspace. Uncomment the
-        # 'slash' binding in [mode.control.binding] to open it.
+        # 'slash' binding in [mode.control.binding] (and 'o' in [mode.cmd.binding]) to open it.
         [mode.launch]
         label = 'Launch'
 

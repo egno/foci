@@ -37,6 +37,7 @@ struct ConfigTests {
         let uncommented = DefaultConfig.text
             .replacingOccurrences(of: "# browser = 'chrome'", with: "browser = 'chrome'")
             .replacingOccurrences(of: "# slash = 'mode launch'", with: "slash = 'mode launch'")
+            .replacingOccurrences(of: "# o = 'mode launch'", with: "o = 'mode launch'")
             .replacingOccurrences(of: DefaultConfig.commented(DefaultConfig.examples), with: DefaultConfig.examples)
             .replacingOccurrences(of: "# apps = [", with: "apps = [")
         let full = try TOMLConfigSource.parse(uncommented)
@@ -46,6 +47,14 @@ struct ConfigTests {
         #expect(full.project("Pet")?.ref("vscode")?.autostart == false)
         #expect(full.project("Work")?.ref("vscode")?.open == ["~/src/work"])
         #expect(full.modes["control"]?[KeyCombo(parsing: "slash")!] == "mode launch")
+        #expect(full.modes["cmd"]?[KeyCombo(parsing: "o")!] == "mode launch")
+        // Foci reports an unknown mode only when its key is pressed.
+        for (mode, bindings) in full.modes {
+            for (combo, script) in bindings where script.hasPrefix("mode ") {
+                let target = String(script.dropFirst(5))
+                #expect(target == "main" || full.modes[target] != nil, "\(mode) \(combo): unknown mode '\(target)'")
+            }
+        }
     }
 
     @Test func missingConfigIsCreatedFromTheDefaultOne() throws {
