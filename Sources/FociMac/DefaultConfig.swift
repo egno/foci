@@ -37,8 +37,8 @@ enum DefaultConfig {
         key-hints = true
         key-hints-delay = 300
 
-        # A submenu closes after 'leader-timeout' milliseconds without a key (0 = never), on a click, and on a
-        # key it doesn't bind (that key still reaches the app).
+        # A submenu closes after 'leader-timeout' milliseconds without a key (0 = never) and on a click. While it
+        # is open, keys it doesn't bind are dropped: no app or system hotkey (cmd-space for Spotlight) sees them.
         leader-timeout = 5000
         # Repeat keys ('repeat = true', like Emacs's repeat-mode): after one acts, only the repeat keys of its
         # mode stay bound for 'repeat-timeout' milliseconds, so 'leader . . .'. Any other key goes to the app.

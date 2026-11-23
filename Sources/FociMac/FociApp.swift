@@ -129,7 +129,8 @@ public final class FociApp: NSObject, NSApplicationDelegate {
             if !self.keyHints.isVisible { self.updateKeyHints() }
             self.restartModeTimeout()
         }
-        // A key the submenu doesn't bind, or a click: the user is doing something else.
+        // A click, or while repeating a key that isn't a repeat key: the user is doing something else. In a submenu
+        // other keys are dropped and don't reach here.
         hotkeys.onOtherInput = { [weak self] in self?.closeMode() }
         menu.onCommand = { [weak self] script, window in self?.run(script, window: window) }
         windowSystem.onEvent = { [weak self] in self?.scheduleRefresh() }
@@ -199,6 +200,7 @@ public final class FociApp: NSObject, NSApplicationDelegate {
         hotkeys.holdDelay = engine.config.holdDelay
         hotkeyProblems = hotkeys.register(engine.bindings)
         hotkeys.reportsOtherInput = engine.mode != "main"
+        hotkeys.blocksOtherKeys = engine.mode != "main" && !engine.isRepeating
         for e in hotkeyProblems { log.error("\(e, privacy: .public)") }
         updateMenu()
     }

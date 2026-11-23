@@ -14,6 +14,10 @@ public final class Hotkeys {
     /// Foci only watches.
     public var onOtherInput: (() -> Void)?
     public var reportsOtherInput = false
+    /// A submenu is open: keys it doesn't bind are dropped before any app or system hotkey (⌘Space) sees them.
+    public var blocksOtherKeys = false {
+        didSet { if !blocksOtherKeys { blocked = [] } }
+    }
     /// Seconds a `hold-` key must be held down to act.
     public var holdDelay: TimeInterval = 0.25
 
@@ -31,6 +35,12 @@ public final class Hotkeys {
     private var monitors: [Any] = []
     private var holds = HoldDetector()
     private var holdTap: CFMachPort?
+    /// Keyboard tap at the HID level, before system hotkeys (⌘Space for Spotlight) and the `NSEvent` monitor:
+    /// any key press while a modifier is held makes it a shortcut, not a tap, and while `blocksOtherKeys` keys
+    /// that aren't hotkeys are dropped.
+    private var guardTap: CFMachPort?
+    /// Key codes whose press was dropped: their repeats and release are dropped too.
+    private var blocked: Set<Int> = []
 
     public init() {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
@@ -76,6 +86,7 @@ public final class Hotkeys {
             holds.keys[code] = (combo, bindings[plain] == nil ? nil : plain)
         }
         if !holds.keys.isEmpty, let error = installHoldTap() { errors.append(error) }
+        if let error = installGuardTap() { errors.append(error) }
         let heldCodes = Set(holds.keys.keys)
         for (i, combo) in bindings.keys.sorted(by: { $0.description < $1.description }).enumerated() {
             if KeyCombo.tapKeys.contains(combo.key) {
@@ -132,6 +143,51 @@ public final class Hotkeys {
         else { return "can't watch held keys: no Accessibility permission?" }
         CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
         holdTap = tap
+        return nil
+    }
+
+    /// Kept once installed, like the hold tap.
+    private func installGuardTap() -> String? {
+        if guardTap != nil { return nil }
+        let callback: CGEventTapCallBack = { _, type, event, refcon in
+            guard let refcon else { return Unmanaged.passUnretained(event) }
+            let hotkeys = Unmanaged<Hotkeys>.fromOpaque(refcon).takeUnretainedValue()
+            // Runs on the main run loop.
+            nonisolated(unsafe) let event = event
+            nonisolated(unsafe) var result: Unmanaged<CGEvent>?
+            MainActor.assumeIsolated { result = hotkeys.handleGuardTap(type, event) }
+            return result
+        }
+        let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
+        guard
+            let tap = CGEvent.tapCreate(
+                tap: .cghidEventTap, place: .headInsertEventTap, options: .defaultTap,
+                eventsOfInterest: CGEventMask(mask), callback: callback,
+                userInfo: Unmanaged.passUnretained(self).toOpaque())
+        else { return "can't guard keys in submenus: no Accessibility permission?" }
+        CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
+        guardTap = tap
+        return nil
+    }
+
+    private func handleGuardTap(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let guardTap { CGEvent.tapEnable(tap: guardTap, enable: true) }
+            return Unmanaged.passUnretained(event)
+        }
+        let code = Int(event.getIntegerValueField(.keyboardEventKeycode))
+        if type == .keyDown { taps.interrupt() }
+        if blocked.contains(code) {
+            if type == .keyUp { blocked.remove(code) }
+            return nil
+        }
+        guard blocksOtherKeys, type == .keyDown, event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else {
+            return Unmanaged.passUnretained(event)
+        }
+        let chord = Chord(code: code, flags: event.flags)
+        let held = chord.modifiers.isEmpty && holds.keys[code] != nil
+        if registered.contains(chord) || held { return Unmanaged.passUnretained(event) }
+        blocked.insert(code)
         return nil
     }
 
@@ -213,6 +269,15 @@ public final class Hotkeys {
 
         init(code: Int, modifiers: Set<Modifier>) {
             self.code = code; self.modifiers = modifiers
+        }
+
+        init(code: Int, flags: CGEventFlags) {
+            var m = Set<Modifier>()
+            if flags.contains(.maskCommand) { m.insert(.cmd) }
+            if flags.contains(.maskControl) { m.insert(.ctrl) }
+            if flags.contains(.maskAlternate) { m.insert(.alt) }
+            if flags.contains(.maskShift) { m.insert(.shift) }
+            self.init(code: code, modifiers: m)
         }
 
         init(_ event: NSEvent) {
