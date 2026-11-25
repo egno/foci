@@ -19,7 +19,11 @@ public enum CLIRequest: Equatable, Sendable {
     case listWorkspaces(json: Bool)
     case listProjects(json: Bool)
     case subscribe
+    /// The running app's version and home page.
+    case version
     case help
+
+    public static let repository = "https://github.com/egno/foci"
 
     public static let usage = """
         usage: foci                          start the app (normally via Foci.app)
@@ -32,6 +36,7 @@ public enum CLIRequest: Equatable, Sendable {
                foci list-workspaces [--json]
                foci list-projects [--json]
                foci subscribe                one JSON status line per change
+               foci version                  the running app's version (also --version)
 
         commands: project <name>|--none|next|prev, project-back-and-forth,
                   workspace <ws>, workspace-back-and-forth (= workspace back),
@@ -72,6 +77,9 @@ public enum CLIRequest: Equatable, Sendable {
         switch first {
         case "help", "--help", "-h":
             return .help
+        case "version", "--version", "-v":
+            try done()
+            return .version
         case "run":
             let window = try option("--window").map { v -> WindowID in
                 guard let raw = UInt32(v) else { throw UsageError(description: "bad window id '\(v)'") }
@@ -196,14 +204,20 @@ public struct ProjectDTO: Equatable, Codable, Sendable {
 @MainActor
 public struct CLIHandler {
     let engine: Engine
+    let version: String
 
-    public init(engine: Engine) { self.engine = engine }
+    public init(engine: Engine, version: String = "unknown") {
+        self.engine = engine
+        self.version = version
+    }
 
     /// `client`: the client process and its ancestors, the opener for `open`.
     public func handle(_ request: CLIRequest, client: [Int32] = []) -> CLIResponse {
         switch request {
         case .help:
             return CLIResponse(stdout: CLIRequest.usage + "\n")
+        case .version:
+            return CLIResponse(stdout: "foci \(version)\n\(CLIRequest.repository)\n")
         case .run(let script, let window):
             let errors = engine.run(script, window: window)
             return errors.isEmpty

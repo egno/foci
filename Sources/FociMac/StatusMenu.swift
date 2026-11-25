@@ -95,6 +95,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(command("Reload Config", "reload-config"))
         menu.addItem(action("Edit Config", #selector(editConfig)))
         menu.addItem(.separator())
+        menu.addItem(action("Foci \(FociApp.version) · github.com/egno/foci", #selector(openRepository)))
         menu.addItem(NSMenuItem(title: "Quit Foci", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
@@ -267,4 +268,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func editConfig() { onEditConfig?() }
+
+    @objc private func openRepository() {
+        URL(string: CLIRequest.repository).map { NSWorkspace.shared.open($0) }
+    }
 }

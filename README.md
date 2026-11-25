@@ -171,6 +171,7 @@ foci list-windows [--json] [--project work | --unlinked | --active] [--workspace
 foci list-workspaces [--json]          # displays left to right, as numbered
 foci list-projects [--json]
 foci subscribe                       # one JSON status line per change, e.g. for sketchybar
+foci version                         # the running app's version and its repository (also --version)
 ```
 
 Exit codes: 0 ok, 1 command failed, 2 usage error, 3 app not running.

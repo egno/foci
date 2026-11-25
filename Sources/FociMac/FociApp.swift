@@ -24,7 +24,10 @@ public final class FociApp: NSObject, NSApplicationDelegate {
     private var signalSources: [DispatchSourceSignal] = []
     /// Links that arrived before the engine started (e.g. Foci was launched to open one).
     private var pendingURLs: [(url: String, opener: [Int32])] = []
-    private lazy var cliServer = CLIServer { [weak self] in self?.engine.map { CLIHandler(engine: $0) } }
+    private lazy var cliServer = CLIServer { [weak self] in self?.engine.map { CLIHandler(engine: $0, version: FociApp.version) } }
+
+    /// `CFBundleShortVersionString` of Foci.app; "dev" when run without the bundle (`swift run`).
+    static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
 
     override public init() { super.init() }
 

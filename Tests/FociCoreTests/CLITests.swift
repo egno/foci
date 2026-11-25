@@ -9,6 +9,8 @@ struct CLIParseTests {
         #expect(try CLIRequest.parse(["workspace w; layout tiles"]) == .run(script: "workspace w; layout tiles", window: nil))
         #expect(try CLIRequest.parse(["run", "--window", "42", "unlink"]) == .run(script: "unlink", window: WindowID(42)))
         #expect(try CLIRequest.parse([]) == .help)
+        #expect(try CLIRequest.parse(["--version"]) == .version)
+        #expect(try CLIRequest.parse(["version"]) == .version)
         #expect(try CLIRequest.parse(["open", "https://a.b/?q=1;2"]) == .open(url: "https://a.b/?q=1;2"))
     }
 
@@ -26,6 +28,7 @@ struct CLIParseTests {
         #expect(throws: CLIRequest.UsageError.self) { try CLIRequest.parse(["teleport"]) }
         #expect(throws: CLIRequest.UsageError.self) { try CLIRequest.parse(["list-windows", "--project"]) }
         #expect(throws: CLIRequest.UsageError.self) { try CLIRequest.parse(["status", "extra"]) }
+        #expect(throws: CLIRequest.UsageError.self) { try CLIRequest.parse(["--version", "extra"]) }
         #expect(throws: CLIRequest.UsageError.self) { try CLIRequest.parse(["run", "--window", "x", "unlink"]) }
     }
 }
@@ -49,6 +52,12 @@ struct CLIHandlerTests {
         let bad = cli.handle(.run(script: "project nope", window: nil))
         #expect(bad.exitCode == 1)
         #expect(bad.stderr == "unknown project 'nope'\n")
+    }
+
+    @Test func versionNamesTheAppAndItsRepository() {
+        let h = harness()
+        let out = CLIHandler(engine: h.engine, version: "1.2.3").handle(.version)
+        #expect(out == CLIResponse(stdout: "foci 1.2.3\nhttps://github.com/egno/foci\n"))
     }
 
     @Test func windowFilters() {
