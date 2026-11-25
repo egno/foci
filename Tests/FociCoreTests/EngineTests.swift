@@ -353,6 +353,41 @@ struct EngineTests {
         #expect(h.ws.focused == WindowID(3))
     }
 
+    /// Leaving native fullscreen, the OS lists the window again only after a moment: it must come back as it was,
+    /// not as a new window linked by the rules on the app's workspace.
+    @Test func windowMissingForAMomentKeepsItsRecord() {
+        let h = Harness()
+        let id = h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
+        h.engine.run("workspace w")
+        h.ws.focused = id
+        h.engine.run("unlink; move-to-display next")
+        let before = h.record(1)
+        #expect(before?.owner == nil)
+        #expect(before?.workspace == "s")
+        let facts = h.ws.windowList
+        h.ws.windowList = []
+        h.engine.refresh()
+        h.clock.date += 5
+        h.engine.refresh()
+        h.ws.windowList = facts
+        h.engine.refresh()
+        #expect(h.record(1)?.owner == nil)
+        #expect(h.record(1)?.workspace == "s")
+        #expect(h.record(1)?.manual == true)
+    }
+
+    @Test func windowMissingForLongLosesItsRecord() {
+        let h = Harness()
+        h.ws.open(1, bundle: "com.google.Chrome", title: "Personal")
+        h.engine.refresh()
+        #expect(h.record(1) != nil)
+        h.ws.windowList = []
+        h.engine.refresh()
+        h.clock.date += Engine.missingWindowGrace + 1
+        h.engine.refresh()
+        #expect(h.record(1) == nil)
+    }
+
     @Test func focusBackShowsEachWindowOnce() {
         var c = Config.sample
         c.modes["control"] = [KeyCombo(parsing: "space")!: "focus-back"]

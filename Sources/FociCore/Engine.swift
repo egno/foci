@@ -37,6 +37,10 @@ public final class Engine {
     private var pendingLaunches: [PendingLaunch] = []
     /// New windows of an app launched for a project within this interval are linked to that project.
     static let launchLinkInterval: TimeInterval = 30
+    /// A window the OS stops listing (leaving native fullscreen, a Space switch) keeps its record this long. A
+    /// record dropped too early comes back as a new window: linked by the rules again, on the app's workspace.
+    static let missingWindowGrace: TimeInterval = 10
+    private var missingSince: [WindowID: Date] = [:]
     /// Explicit target of the running command, see `run(_:window:)`.
     private var target: WindowID?
     /// Last focused window reported by the OS; a change means the user focused something.
@@ -178,7 +182,10 @@ public final class Engine {
 
         let list = windowSystem.windows().sorted { $0.id < $1.id }
         facts = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        state.windows = state.windows.filter { facts[$0.key] != nil }
+        missingSince = missingSince.filter { facts[$0.key] == nil }
+        for id in state.windows.keys where facts[id] == nil && missingSince[id] == nil { missingSince[id] = now }
+        state.windows = state.windows.filter { facts[$0.key] != nil || missingSince[$0.key].map { now.timeIntervalSince($0) <= Self.missingWindowGrace } == true }
+        missingSince = missingSince.filter { state.windows[$0.key] != nil }
         dropUnknownProjects()
         normalizeWorkspaces()
 
