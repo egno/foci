@@ -47,8 +47,9 @@ cask "foci" do
   ]
 
   caveats <<~EOS
-    Foci needs the Accessibility permission (it asks on first start). Release builds are signed ad hoc,
-    so after an upgrade macOS may ask again: remove Foci from System Settings → Privacy & Security →
+    Foci needs the Accessibility permission (it asks on first start). Releases from 1.0.4 on are signed
+    with one certificate, so updates keep it. Upgrading from an older version asks once more: if Foci's
+    switch is on but nothing happens, remove Foci from System Settings → Privacy & Security →
     Accessibility and add it back.
   EOS
 end

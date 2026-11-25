@@ -125,10 +125,10 @@ ln -sf /Applications/Foci.app/Contents/MacOS/foci ~/.local/bin/foci   # optional
 
 Foci asks for the Accessibility permission on first start: turn Foci on in System Settings → Privacy & Security →
 Accessibility, and it starts by itself. Until then the menu bar shows `Foci ⚠ Accessibility`; its menu opens the
-settings. Release builds are signed ad hoc, so the permission belongs to one build: after an update the switch is
-on but doesn't apply. Click **Reset Permission and Ask Again** in Foci's menu (or run
-`tccutil reset Accessibility dev.foci.Foci`) and turn it on again. Start Foci from Finder, Spotlight or
-`open -a Foci`; `foci` without arguments in a terminal does the same.
+settings. Releases are signed with one certificate, so the permission survives updates. Up to 1.0.3 they were signed
+ad hoc, one signature per build: updating from those to 1.0.4 asks once more. If the switch is on but doesn't apply,
+click **Reset Permission and Ask Again** in Foci's menu (or run `tccutil reset Accessibility dev.foci.Foci`) and turn
+it on again. Start Foci from Finder, Spotlight or `open -a Foci`; `foci` without arguments in a terminal does the same.
 
 ## Build & run
 
@@ -136,10 +136,11 @@ Requires macOS 14+, Swift 6.
 
 ```sh
 scripts/make-signing-cert.sh   # once: a stable signature keeps the Accessibility permission across rebuilds
+scripts/make-signing-cert.sh "Foci Release"   # once, to release: the same for every release
 make test
 make install                   # builds build/Foci.app, installs to ~/Applications, starts it
 make log                       # follow the log
-make release                   # build/Foci-<version>.dmg and .zip for a GitHub release (universal, ad hoc signed)
+make release                   # build/Foci-<version>.dmg and .zip for a GitHub release (universal, signed with "Foci Release")
 ```
 
 With `start-at-login = true` (the default config) Foci registers itself as a login item; macOS may ask you to allow
@@ -202,7 +203,9 @@ runs them with a fixture app and its own `FOCI_HOME`; it stops your Foci meanwhi
 ## Releasing
 
 1. Set `CFBundleShortVersionString` (and bump `CFBundleVersion`) in `Resources/Info.plist`.
-2. `make release` builds `build/Foci-<version>.dmg` and `.zip`: universal, signed ad hoc, not notarized.
+2. `make release` builds `build/Foci-<version>.dmg` and `.zip`: universal, signed with the self-signed "Foci Release"
+   certificate (`scripts/make-signing-cert.sh "Foci Release"`, once; keep its key: a new one makes everybody grant the
+   Accessibility permission again), not notarized.
 3. Tag `v<version>`, push the tag and attach both files to a GitHub release.
 4. `make cask TAP=~/proj/homebrew-tap` updates `Casks/foci.rb` in [egno/homebrew-tap](https://github.com/egno/homebrew-tap)
    with the version and the DMG's checksum; commit and push the tap.
