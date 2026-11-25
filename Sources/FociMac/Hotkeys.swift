@@ -13,7 +13,14 @@ public final class Hotkeys {
     /// A key press that is no hotkey, or a mouse click, while `reportsOtherInput`. It still reaches the app:
     /// Foci only watches.
     public var onOtherInput: (() -> Void)?
-    public var reportsOtherInput = false
+    /// A submenu is open. While it is, and some app has Secure Event Input on (a password field), the keys
+    /// go to `catcher`: see `SecureKeyCatcher`.
+    public var reportsOtherInput = false {
+        didSet {
+            guard reportsOtherInput != oldValue else { return }
+            if reportsOtherInput, IsSecureEventInputEnabled() { catcher.take() } else { catcher.release() }
+        }
+    }
     /// A submenu is open: keys it doesn't bind are dropped before any app or system hotkey (⌘Space) sees them.
     public var blocksOtherKeys = false {
         didSet { if !blocksOtherKeys { blocked = [] } }
@@ -28,6 +35,9 @@ public final class Hotkeys {
     private var tapKeys: Set<String> = []
     /// Registered (key code, modifiers), to tell other key presses from hotkeys.
     private var registered: Set<Chord> = []
+    /// Every bound key press by its chord, for the keys `catcher` gets when the system hides them from hotkeys.
+    private var chordCombos: [Chord: KeyCombo] = [:]
+    private lazy var catcher = SecureKeyCatcher { [weak self] event in self?.catcherKey(event) }
     /// The set before the last `register`, and when it was replaced: the key that changed the mode may reach
     /// the monitor after the new set is registered.
     private var replaced: (chords: Set<Chord>, at: TimeInterval) = ([], 0)
@@ -73,6 +83,7 @@ public final class Hotkeys {
         tapKeys = []
         replaced = (registered, GetCurrentEventTime())
         registered = []
+        chordCombos = [:]
         var errors: [String] = []
         holds.keys = [:]
         for combo in bindings.keys {
@@ -94,6 +105,7 @@ public final class Hotkeys {
                 continue
             }
             if combo.heldKey != nil { continue }
+            if let code = Self.keyCodes[combo.key] { chordCombos[Chord(code: code, modifiers: combo.modifiers)] = combo }
             // The event tap sees the key first and runs it when tapped.
             if combo.modifiers.isEmpty, let code = Self.keyCodes[combo.key], heldCodes.contains(code) { continue }
             guard let code = Self.keyCodes[combo.key] else {
@@ -168,6 +180,27 @@ public final class Hotkeys {
         CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
         guardTap = tap
         return nil
+    }
+
+    /// A key press that reached the catcher: the system doesn't deliver it to hotkeys (Secure Event Input stays
+    /// on, e.g. Terminal's Secure Keyboard Entry), or it is no hotkey.
+    private func catcherKey(_ event: NSEvent) {
+        guard !event.isARepeat else { return }
+        if let combo = chordCombos[Chord(event)] {
+            DispatchQueue.main.async { [weak self] in self?.onHotkey?(combo) }
+            return
+        }
+        // Dropped, like any key a submenu doesn't bind. While repeating it belongs to the app: closing the
+        // mode releases the catcher (the observer sees this key too), the app gets the key again.
+        guard !blocksOtherKeys, let key = event.cgEvent else { return }
+        catcher.release()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            guard let down = key.copy() else { return }
+            down.post(tap: .cghidEventTap)
+            let up = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(event.keyCode), keyDown: false)
+            up?.flags = key.flags
+            up?.post(tap: .cghidEventTap)
+        }
     }
 
     private func handleGuardTap(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -316,6 +349,47 @@ public final class Hotkeys {
         for (i, code) in fKeys.enumerated() { k["f\(i + 1)"] = code }
         return k
     }()
+}
+
+/// While a submenu is open and an app has Secure Event Input on (KeePassXC's "Enter Password" field, a terminal
+/// with Secure Keyboard Entry), the system hides key presses from hotkeys and event taps, so the menu's keys
+/// would be typed into that app. A key window of Foci's own takes them instead: an invisible, non-activating
+/// panel, so the app stays in front and its focused window stays what commands act on. The field that lost
+/// the key window stops its Secure Event Input, which makes the hotkeys work again; if it doesn't, the panel
+/// gets the keys itself (`Hotkeys.catcherKey`).
+@MainActor
+final class SecureKeyCatcher {
+    private final class Panel: NSPanel {
+        var onKeyDown: ((NSEvent) -> Void)?
+        override var canBecomeKey: Bool { true }
+        override func keyDown(with event: NSEvent) { onKeyDown?(event) }
+    }
+
+    private let panel: Panel
+
+    init(onKeyDown: @escaping (NSEvent) -> Void) {
+        panel = Panel(
+            contentRect: NSRect(x: 0, y: 0, width: 1, height: 1), styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered, defer: true)
+        panel.onKeyDown = onKeyDown
+        panel.level = .statusBar
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = true
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+    }
+
+    func take() {
+        if let screen = NSScreen.main { panel.setFrameOrigin(screen.frame.origin) }
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    /// The app's own window is the key window again.
+    func release() {
+        panel.orderOut(nil)
+    }
 }
 
 /// A plain key that acts when held down (`hold-space`): its press is held back until it is released (the key

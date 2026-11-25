@@ -75,6 +75,9 @@ A small macOS window manager for working on one project at a time, keyboard firs
   to `main`, unless the key enters another mode or the mode is `sticky = true`. In every submenu `esc` closes and
   `backspace` goes up one level. A submenu also closes after `leader-timeout` ms (5000) and on a click. While a
   submenu is open, keys it doesn't bind are dropped: no app or system hotkey (⌘Space for Spotlight) sees them.
+  In a password field (or a terminal with Secure Keyboard Entry) macOS hides keys
+  from every hotkey; while a submenu is open Foci takes the key window with an invisible panel, so the menu's
+  keys are not typed into the field. The app stays in front, and gets the key window back when the menu closes.
 - **Repeat keys**, like Emacs's repeat-mode: after a key with `repeat = true` acts (focus, move, resize), only
   the repeat keys of its mode stay bound for `repeat-timeout` ms (1000), so `leader . . .`. Any other key
   goes to the app.
