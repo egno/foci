@@ -11,7 +11,8 @@ bin=$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)
 
 app=build/release/Foci.app
 rm -rf build/release
-mkdir -p "$app/Contents/MacOS"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 cp "$bin/foci" "$app/Contents/MacOS/foci"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 codesign --force --sign - --identifier dev.foci.Foci "$app"

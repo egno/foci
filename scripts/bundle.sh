@@ -8,7 +8,8 @@ cd "$(dirname "$0")/.."
 swift build -c release
 app=build/Foci.app
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 cp "$(swift build -c release --show-bin-path)/foci" "$app/Contents/MacOS/foci"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 
