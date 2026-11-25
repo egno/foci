@@ -60,6 +60,11 @@ struct CLIHandlerTests {
         #expect(out == CLIResponse(stdout: "foci 1.2.3\nhttps://github.com/egno/foci\n"))
     }
 
+    @Test func releasePageOfAVersion() {
+        #expect(CLIRequest.releaseURL(version: "1.0.2") == "https://github.com/egno/foci/releases/tag/v1.0.2")
+        #expect(CLIRequest.releaseURL(version: "dev") == "https://github.com/egno/foci/releases")
+    }
+
     @Test func windowFilters() {
         let h = harness()
         let cli = CLIHandler(engine: h.engine)

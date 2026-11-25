@@ -25,6 +25,11 @@ public enum CLIRequest: Equatable, Sendable {
 
     public static let repository = "https://github.com/egno/foci"
 
+    /// The GitHub release page of a version (`1.0.2`); the list of releases for a build outside a release (`dev`).
+    public static func releaseURL(version: String) -> String {
+        version.first?.isNumber == true ? "\(repository)/releases/tag/v\(version)" : "\(repository)/releases"
+    }
+
     public static let usage = """
         usage: foci                          start the app (normally via Foci.app)
                foci <command script>         e.g. foci project work; foci 'workspace w; layout tiles'
